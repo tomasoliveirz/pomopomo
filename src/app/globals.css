@@ -1,0 +1,240 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Fredoka One', cursive;
+}
+
+html,
+body,
+#__next {
+  height: 100%;
+}
+
+html,
+body {
+  overflow: hidden;
+}
+
+/* Theme: Midnight Bloom - Deep focus, cosmic lavender */
+[data-theme='midnight_bloom'] {
+  --bg: #121524;
+  --card: #1b2033;
+  --text: #e4e7f5;
+  --accent: #8b5cf6;
+  --accent-subtle: #8b5cf620;
+  --ring: #8b5cf6;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+/* Theme: Lilac Mist - Gentle pastel productivity */
+[data-theme='lilac_mist'] {
+  --bg: #f8f7ff;
+  --card: #ffffff;
+  --text: #2e2a3b;
+  --accent: #a78bfa;
+  --accent-subtle: #c4b5fd30;
+  --ring: #a78bfa;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+/* Theme: Solar Cream - Soft daylight, cozy warmth */
+[data-theme='solar_cream'] {
+  --bg: #fffdf6;
+  --card: #ffffff;
+  --text: #3a2f22;
+  --accent: #f4b400;
+  --accent-subtle: #fde68a40;
+  --ring: #f4b400;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+/* Theme: Verdant Dew - Morning calm and freshness */
+[data-theme='verdant_dew'] {
+  --bg: #f5fff8;
+  --card: #ffffff;
+  --text: #1f2937;
+  --accent: #34d399;
+  --accent-subtle: #a7f3d040;
+  --ring: #34d399;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+/* Theme: Sakura Ink - Japanese minimal blush & ink */
+[data-theme='sakura_ink'] {
+  --bg: #fff9fa;
+  --card: #ffffff;
+  --text: #2d2d2d;
+  --accent: #f472b6;
+  --accent-subtle: #fbcfe820;
+  --ring: #f472b6;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+/* Theme: Arctic Drift - Nordic clarity, winter calm */
+[data-theme='arctic_drift'] {
+  --bg: #f9fcff;
+  --card: #ffffff;
+  --text: #1e293b;
+  --accent: #0ea5e9;
+  --accent-subtle: #7dd3fc30;
+  --ring: #0ea5e9;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+/* Theme: Amber Dusk - Warm twilight and deep contrast */
+[data-theme='amber_dusk'] {
+  --bg: #1a1410;
+  --card: #231a16;
+  --text: #fef3c7;
+  --accent: #fb923c;
+  --accent-subtle: #fb923c25;
+  --ring: #fb923c;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+/* Theme: Coral Velvet - Modern, soft, optimistic */
+[data-theme='coral_velvet'] {
+  --bg: #fff8f6;
+  --card: #ffffff;
+  --text: #2f1b1b;
+  --accent: #fb7185;
+  --accent-subtle: #fecdd340;
+  --ring: #fb7185;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+/* Theme: Noir Mint - Sleek dark mode with mint glow */
+[data-theme='noir_mint'] {
+  --bg: #101315;
+  --card: #161a1d;
+  --text: #d9e1e8;
+  --accent: #2dd4bf;
+  --accent-subtle: #5eead440;
+  --ring: #2dd4bf;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-subtle);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Button styles */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.btn-primary {
+  @apply btn bg-accent text-white hover:opacity-90;
+  @apply focus:ring-ring;
+}
+
+.btn-secondary {
+  @apply btn bg-card text-text border border-accent-subtle hover:bg-accent-subtle;
+  @apply focus:ring-ring;
+}
+
+.btn-ghost {
+  @apply btn bg-transparent hover:bg-accent-subtle;
+  @apply focus:ring-ring;
+}
+
+/* Input styles */
+.input {
+  @apply w-full px-4 py-2 rounded-lg bg-card border border-accent-subtle;
+  @apply text-text placeholder:opacity-50;
+  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent;
+  @apply transition-all duration-200;
+}
+
+/* Card styles */
+.card {
+  @apply bg-card rounded-card p-6;
+  @apply border border-accent-subtle border-opacity-10;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
+/* Gradient overlays */
+.gradient-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.gradient-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--accent) 0%, transparent 50%);
+  opacity: 0.05;
+  pointer-events: none;
+}
+
