@@ -10,10 +10,9 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 export function showEndNotification(opts?: { title?: string; body?: string }) {
   if (typeof window === 'undefined') return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  new Notification(opts?.title ?? '🍅 Pomopomo — Time's up!', {
+  new Notification(opts?.title ?? '🍅 Pomopomo - Time\'s up!', {
     body: opts?.body ?? 'Focus block finished. Ready for the next segment?',
     tag: 'pomopomo-timer',
-    renotify: true,
     silent: false,
     icon: '/tomato.svg',
   });
