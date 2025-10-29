@@ -10,16 +10,101 @@ interface SocketData {
   participantId: string;
 }
 
-let queueVersions: Record<string, number> = {};
+// Global timer checker - runs independently of socket connections
+let timerCheckInterval: NodeJS.Timeout | null = null;
+let globalIo: Server<ClientEvents, ServerEvents> | null = null;
 
-function getQueueVersion(roomId: string): number {
-  return queueVersions[roomId] || 0;
+function startGlobalTimerChecker(io: Server<ClientEvents, ServerEvents>) {
+  if (timerCheckInterval) return; // Already running
+  
+  globalIo = io;
+  
+  timerCheckInterval = setInterval(async () => {
+    try {
+      // Find all running rooms
+      const runningRooms = await prisma.room.findMany({
+        where: { status: 'running' }
+      });
+      
+      const now = Date.now();
+      
+      for (const room of runningRooms) {
+        const timerState = await getRoomTimerState(room.id);
+        
+        // Check if segment has ended
+        if (timerState?.segmentEndsAt && timerState.segmentEndsAt <= now) {
+          console.log(`⏰ Segment ended for room ${room.code}, auto-advancing...`);
+          
+          // Get segments
+          const segments = await prisma.segment.findMany({
+            where: { roomId: room.id },
+            orderBy: { order: 'asc' }
+          });
+          
+          const nextIndex = timerState.currentIndex + 1;
+          
+          if (nextIndex < segments.length) {
+            // Advance to next segment
+            const nextSegment = segments[nextIndex];
+            const segmentEndsAt = now + nextSegment.durationSec * 1000;
+            
+            await prisma.room.update({
+              where: { id: room.id },
+              data: { currentSegmentIndex: nextIndex }
+            });
+            
+            await setRoomTimerState(room.id, {
+              status: 'running',
+              currentIndex: nextIndex,
+              segmentEndsAt,
+              remainingSec: nextSegment.durationSec,
+              lastUpdateTime: now
+            });
+            
+            // Broadcast to all clients in room
+            io.to(room.id).emit('room:state', {
+              status: 'running',
+              currentIndex: nextIndex,
+              serverNow: now,
+              segmentEndsAt
+            });
+            
+            console.log(`✅ Advanced room ${room.code} to segment ${nextIndex}`);
+          } else {
+            // Queue completed
+            await prisma.room.update({
+              where: { id: room.id },
+              data: { status: 'ended' }
+            });
+            
+            await setRoomTimerState(room.id, {
+              status: 'ended',
+              currentIndex: timerState.currentIndex,
+              segmentEndsAt: null,
+              remainingSec: 0,
+              lastUpdateTime: now
+            });
+            
+            io.to(room.id).emit('room:state', {
+              status: 'ended',
+              currentIndex: timerState.currentIndex,
+              serverNow: now,
+              segmentEndsAt: null
+            });
+            
+            console.log(`🏁 Queue completed for room ${room.code}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in timer checker:', error);
+    }
+  }, 1000); // Check every second
+  
+  console.log('⏱️  Global timer checker started');
 }
 
-function incrementQueueVersion(roomId: string): number {
-  queueVersions[roomId] = (queueVersions[roomId] || 0) + 1;
-  return queueVersions[roomId];
-}
+export { startGlobalTimerChecker };
 
 export function handleQueueEvents(
   io: Server<ClientEvents, ServerEvents>,
@@ -27,6 +112,9 @@ export function handleQueueEvents(
   data: SocketData
 ) {
   const { roomId, payload } = data;
+  
+  // Start global timer on first queue event handler registration
+  startGlobalTimerChecker(io);
 
   // Only host can modify queue
   const requireHost = (callback: Function) => {
@@ -37,128 +125,7 @@ export function handleQueueEvents(
     return true;
   };
 
-  // Recursive function to handle auto-advance continuously
-  const scheduleAutoAdvance = async (targetIndex: number, durationMs: number) => {
-    setTimeout(async () => {
-      const currentState = await getRoomTimerState(roomId);
-      if (currentState?.status !== 'running' || currentState.currentIndex !== targetIndex) {
-        return; // Timer was paused or changed
-      }
-
-      // Get current segments
-      const segments = await prisma.segment.findMany({
-        where: { roomId },
-        orderBy: { order: 'asc' },
-      });
-
-      const completedSegment = segments[targetIndex];
-      if (completedSegment) {
-        // DELETE the completed segment
-        await prisma.segment.delete({
-          where: { id: completedSegment.id },
-        });
-        
-        // Decrement order of all remaining segments
-        await prisma.segment.updateMany({
-          where: { 
-            roomId,
-            order: { gt: completedSegment.order }
-          },
-          data: {
-            order: { decrement: 1 }
-          }
-        });
-      }
-      
-      // Re-fetch remaining segments
-      const remainingSegments = await prisma.segment.findMany({
-        where: { roomId },
-        orderBy: { order: 'asc' },
-      });
-      
-      if (remainingSegments.length === 0) {
-        // Queue completed
-        await prisma.room.update({
-          where: { id: roomId },
-          data: { 
-            status: 'ended',
-            currentSegmentIndex: 0,
-          },
-        });
-        
-        await setRoomTimerState(roomId, {
-          status: 'ended',
-          currentIndex: 0,
-          segmentEndsAt: null,
-          remainingSec: 0,
-          lastUpdateTime: Date.now(),
-        });
-
-        io.to(roomId).emit('room:state', {
-          status: 'ended',
-          currentIndex: 0,
-          serverNow: Date.now(),
-          segmentEndsAt: null,
-        });
-        
-        io.to(roomId).emit('queue:snapshot', { segments: [], version: getQueueVersion(roomId) });
-      } else {
-        // Auto-play next segment (CONTINUOUSLY)
-        const nextSegment = remainingSegments[0];
-        const nextNow = Date.now();
-        const nextSegmentEndsAt = nextNow + nextSegment.durationSec * 1000;
-
-        await prisma.room.update({
-          where: { id: roomId },
-          data: {
-            status: 'running',
-            currentSegmentIndex: 0,
-          },
-        });
-
-        await setRoomTimerState(roomId, {
-          status: 'running',
-          currentIndex: 0,
-          segmentEndsAt: nextSegmentEndsAt,
-          remainingSec: nextSegment.durationSec,
-          lastUpdateTime: nextNow,
-        });
-
-        io.to(roomId).emit('room:state', {
-          status: 'running',
-          currentIndex: 0,
-          serverNow: nextNow,
-          segmentEndsAt: nextSegmentEndsAt,
-        });
-        
-        io.to(roomId).emit('queue:snapshot', { segments: remainingSegments as any, version: getQueueVersion(roomId) });
-        
-        // 🔥 RECURSIVELY schedule next auto-advance
-        scheduleAutoAdvance(0, nextSegment.durationSec * 1000);
-      }
-    }, durationMs);
-  };
-
-  socket.on('queue:get', async (callback) => {
-    try {
-      const segments = await prisma.segment.findMany({
-        where: { roomId },
-        orderBy: { order: 'asc' },
-      });
-      
-      const version = getQueueVersion(roomId);
-      
-      if (callback) {
-        callback({ segments, version });
-      } else {
-        socket.emit('queue:snapshot', { segments: segments as any, version });
-      }
-    } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to get queue' });
-    }
-  });
-
-  socket.on('queue:replace', async (queueData, ack) => {
+  socket.on('queue:replace', async (queueData) => {
     if (!requireHost(() => {})) return;
 
     try {
@@ -177,14 +144,10 @@ export function handleQueueEvents(
               label: seg.label,
               durationSec: seg.durationSec,
               order: index,
-              publicTask: seg.publicTask || null,
             },
           })
         )
       );
-
-      // Increment version
-      const version = incrementQueueVersion(roomId);
 
       // Reset room state
       await prisma.room.update({
@@ -192,98 +155,20 @@ export function handleQueueEvents(
         data: { status: 'idle', currentSegmentIndex: 0, startsAt: null },
       });
 
-      // Broadcast updated queue with version
-      io.to(roomId).emit('queue:snapshot', { segments: segments as any, version });
+      // Broadcast updated queue
+      io.to(roomId).emit('queue:updated', { segments: segments as any });
       io.to(roomId).emit('room:state', {
         status: 'idle',
         currentIndex: 0,
         serverNow: Date.now(),
         segmentEndsAt: null,
       });
-
-      if (ack) ack(true);
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Invalid queue data' });
-      if (ack) ack(false);
     }
   });
 
-  socket.on('queue:add', async (addData, ack) => {
-    if (!requireHost(() => {})) return;
-
-    try {
-      const existingSegments = await prisma.segment.findMany({
-        where: { roomId },
-        orderBy: { order: 'asc' },
-      });
-
-      const newSegment = await prisma.segment.create({
-        data: {
-          roomId,
-          kind: addData.segment.kind,
-          label: addData.segment.label,
-          durationSec: addData.segment.durationSec,
-          order: existingSegments.length,
-          publicTask: addData.segment.publicTask || null,
-        },
-      });
-
-      const version = incrementQueueVersion(roomId);
-
-      const allSegments = await prisma.segment.findMany({
-        where: { roomId },
-        orderBy: { order: 'asc' },
-      });
-
-      io.to(roomId).emit('queue:snapshot', { segments: allSegments as any, version });
-
-      if (ack) ack(true);
-    } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to add segment' });
-      if (ack) ack(false);
-    }
-  });
-
-  socket.on('queue:remove', async (removeData, ack) => {
-    if (!requireHost(() => {})) return;
-
-    try {
-      await prisma.segment.delete({
-        where: { id: removeData.segmentId },
-      });
-
-      // Reorder remaining segments
-      const segments = await prisma.segment.findMany({
-        where: { roomId },
-        orderBy: { order: 'asc' },
-      });
-
-      await Promise.all(
-        segments.map((seg, index) =>
-          prisma.segment.update({
-            where: { id: seg.id },
-            data: { order: index },
-          })
-        )
-      );
-
-      const version = incrementQueueVersion(roomId);
-
-      const updatedSegments = await prisma.segment.findMany({
-        where: { roomId },
-        orderBy: { order: 'asc' },
-      });
-
-      io.to(roomId).emit('queue:snapshot', { segments: updatedSegments as any, version });
-
-      if (ack) ack(true);
-    } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to remove segment' });
-      if (ack) ack(false);
-    }
-  });
-
-  socket.on('queue:reorder', async (reorderData, ack) => {
+  socket.on('queue:reorder', async (reorderData) => {
     if (!requireHost(() => {})) return;
 
     try {
@@ -307,19 +192,14 @@ export function handleQueueEvents(
         )
       );
 
-      const version = incrementQueueVersion(roomId);
-
       const updatedSegments = await prisma.segment.findMany({
         where: { roomId },
         orderBy: { order: 'asc' },
       });
 
-      io.to(roomId).emit('queue:snapshot', { segments: updatedSegments as any, version });
-
-      if (ack) ack(true);
+      io.to(roomId).emit('queue:updated', { segments: updatedSegments as any });
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to reorder queue' });
-      if (ack) ack(false);
     }
   });
 
@@ -379,8 +259,8 @@ export function handleQueueEvents(
         segmentEndsAt,
       });
 
-      // 🔥 Schedule RECURSIVE auto-advance for continuous flow
-      scheduleAutoAdvance(targetIndex, segment.durationSec * 1000);
+      // Note: Auto-advance is now handled by the global timer checker
+      // No need for setTimeout - it's more reliable and doesn't depend on socket connections
 
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to play queue' });
@@ -398,7 +278,9 @@ export function handleQueueEvents(
       }
 
       const now = Date.now();
-      const remainingSec = Math.max(0, Math.floor((timerState.segmentEndsAt! - now) / 1000));
+      const remainingSec = timerState.segmentEndsAt 
+        ? Math.max(0, Math.floor((timerState.segmentEndsAt - now) / 1000))
+        : 0;
 
       await prisma.room.update({
         where: { id: roomId },
@@ -436,51 +318,19 @@ export function handleQueueEvents(
         orderBy: { order: 'asc' },
       });
 
-      const currentSegment = segments[room.currentSegmentIndex];
-      if (currentSegment) {
-        // Emit segment consumed
-        io.to(roomId).emit('segment:consumed', { segmentId: currentSegment.id });
-        
-        // DELETE segment from DB (make it disappear completely)
-        await prisma.segment.delete({
-          where: { id: currentSegment.id },
-        });
-        
-        // Decrement order of all remaining segments
-        await prisma.segment.updateMany({
-          where: { 
-            roomId,
-            order: { gt: currentSegment.order }
-          },
-          data: {
-            order: { decrement: 1 }
-          }
-        });
-      }
-
-      // Re-fetch segments after deletion
-      const remainingSegments = await prisma.segment.findMany({
-        where: { roomId },
-        orderBy: { order: 'asc' },
-      });
-
-      // After deleting current segment, next segment is now at index 0
-      const nextIndex = 0;
+      const nextIndex = room.currentSegmentIndex + 1;
       
-      if (remainingSegments.length === 0) {
-        // No more segments - end the queue
+      if (nextIndex >= segments.length) {
+        // End of queue
         await prisma.room.update({
           where: { id: roomId },
-          data: { 
-            status: 'ended',
-            currentSegmentIndex: 0,
-          },
+          data: { status: 'ended' },
         });
         
         // Clear timer state
         await setRoomTimerState(roomId, {
           status: 'ended',
-          currentIndex: 0,
+          currentIndex: room.currentSegmentIndex,
           segmentEndsAt: null,
           remainingSec: 0,
           lastUpdateTime: Date.now(),
@@ -488,16 +338,13 @@ export function handleQueueEvents(
         
         io.to(roomId).emit('room:state', {
           status: 'ended',
-          currentIndex: 0,
+          currentIndex: room.currentSegmentIndex,
           serverNow: Date.now(),
           segmentEndsAt: null,
         });
-        
-        // Broadcast updated segments list (empty)
-        io.to(roomId).emit('queue:snapshot', { segments: [], version: getQueueVersion(roomId) });
       } else {
-        // Play next segment immediately (now at index 0)
-        const segment = remainingSegments[nextIndex];
+        // Play next segment immediately
+        const segment = segments[nextIndex];
         if (!segment) return;
 
         const now = Date.now();
@@ -528,15 +375,10 @@ export function handleQueueEvents(
           serverNow: now,
           segmentEndsAt,
         });
-        
-        // Broadcast updated segments list
-        io.to(roomId).emit('queue:snapshot', { segments: remainingSegments as any, version: getQueueVersion(roomId) });
-        
-        // 🔥 Schedule RECURSIVE auto-advance for CONTINUOUS flow after skip
-        scheduleAutoAdvance(nextIndex, segment.durationSec * 1000);
       }
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to skip segment' });
     }
   });
 }
+
