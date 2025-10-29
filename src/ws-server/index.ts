@@ -74,11 +74,17 @@ io.on('connection', async (socket: Socket) => {
   socket.join(roomId);
   await addRoomPresence(roomId, participantId);
 
-  // Update last seen
-  await prisma.participant.update({
-    where: { id: participantId },
-    data: { lastSeenAt: new Date() },
-  });
+  // Update last seen (handle case where participant was deleted)
+  try {
+    await prisma.participant.update({
+      where: { id: participantId },
+      data: { lastSeenAt: new Date() },
+    });
+  } catch (error) {
+    console.log(`⚠️ Could not update participant ${participantId} (probably deleted)`);
+    socket.disconnect();
+    return;
+  }
 
   // Send current room state
   const room = await prisma.room.findUnique({ where: { id: roomId } });
