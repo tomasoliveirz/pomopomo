@@ -18,7 +18,7 @@ export async function handleSegmentEnd() {
     const original = document.title;
     let on = true;
     const id = setInterval(() => {
-      document.title = on ? '⏰ Time's up! — Pomopomo' : original;
+      document.title = on ? '⏰ Time\'s up! - Pomopomo' : original;
       on = !on;
     }, 900);
     const stop = () => {
