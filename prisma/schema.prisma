@@ -1,0 +1,180 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Theme {
+  midnight_bloom
+  lilac_mist
+  solar_cream
+  verdant_dew
+  sakura_ink
+  arctic_drift
+  amber_dusk
+  coral_velvet
+  noir_mint
+}
+
+enum RoomStatus {
+  idle
+  running
+  paused
+  ended
+}
+
+enum Role {
+  host
+  guest
+}
+
+enum SegmentKind {
+  focus
+  break
+  long_break
+  custom
+}
+
+enum Visibility {
+  private
+  public
+}
+
+enum ProposalType {
+  add_segment
+  edit_segment
+  public_task
+}
+
+enum ProposalStatus {
+  pending
+  accepted
+  rejected
+}
+
+model Room {
+  id                  String       @id @default(uuid())
+  code                String       @unique
+  hostSessionId       String       @map("host_session_id")
+  theme               Theme        @default(midnight_bloom)
+  status              RoomStatus   @default(idle)
+  currentSegmentIndex Int          @default(0) @map("current_segment_index")
+  startsAt            DateTime?    @map("starts_at")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  expiresAt           DateTime     @map("expires_at")
+  
+  segments            Segment[]
+  participants        Participant[]
+  tasks               Task[]
+  proposals           Proposal[]
+  messages            Message[]
+
+  @@map("rooms")
+}
+
+model Segment {
+  id          String      @id @default(uuid())
+  roomId      String      @map("room_id")
+  kind        SegmentKind
+  label       String
+  durationSec Int         @map("duration_sec")
+  order       Int
+  publicTask  String?     @map("public_task")
+
+  room        Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([roomId, order])
+  @@map("segments")
+}
+
+model Participant {
+  id          String    @id @default(uuid())
+  roomId      String    @map("room_id")
+  sessionId   String    @map("session_id")
+  displayName String    @map("display_name")
+  role        Role      @default(guest)
+  isMuted     Boolean   @default(false) @map("is_muted")
+  joinedAt    DateTime  @default(now()) @map("joined_at")
+  lastSeenAt  DateTime  @default(now()) @map("last_seen_at")
+
+  room        Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  proposals   Proposal[]
+  messages    Message[]
+
+  @@unique([roomId, sessionId])
+  @@index([roomId, sessionId])
+  @@map("participants")
+}
+
+model Task {
+  id            String     @id @default(uuid())
+  roomId        String     @map("room_id")
+  segmentId     String     @map("segment_id")
+  participantId String     @map("participant_id")
+  visibility    Visibility @default(private)
+  text          String
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  room          Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  segment       Segment    @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([segmentId, participantId])
+  @@map("tasks")
+}
+
+model Proposal {
+  id           String         @id @default(uuid())
+  roomId       String         @map("room_id")
+  type         ProposalType
+  payload      Json
+  status       ProposalStatus @default(pending)
+  createdBy    String         @map("created_by")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  moderatedAt  DateTime?      @map("moderated_at")
+
+  room         Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  participant  Participant    @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([roomId, status])
+  @@map("proposals")
+}
+
+model Message {
+  id              String      @id @default(uuid())
+  roomId          String      @map("room_id")
+  participantId   String      @map("participant_id")
+  text            String
+  reactions       Json        @default("{}")
+  isShadowHidden  Boolean     @default(false) @map("is_shadow_hidden")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  room            Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  participant     Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@map("messages")
+}
+
+model DailyStatistic {
+  id                      String   @id @default(uuid())
+  date                    DateTime @unique @db.Date
+  roomsCreated            Int      @default(0) @map("rooms_created")
+  totalParticipants       Int      @default(0) @map("total_participants")
+  totalSessions           Int      @default(0) @map("total_sessions")
+  totalFocusMinutes       Int      @default(0) @map("total_focus_minutes")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("daily_statistics")
+}
+
+
