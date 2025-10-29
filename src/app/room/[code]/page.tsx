@@ -9,7 +9,9 @@ import QueuePanel from '@/components/room/QueuePanel';
 import ChatDrawer from '@/components/room/ChatDrawer';
 import MemberList from '@/components/room/MemberList';
 import IntervalCustomizer from '@/components/IntervalCustomizer';
+import AlertsSettings from '@/components/AlertsSettings';
 import Toast from '@/components/Toast';
+import { handleSegmentEnd } from '@/alerts/engine';
 import type { Room, Participant, Segment, Message, RoomStatus } from '@/types';
 
 export default function RoomPage() {
@@ -35,6 +37,7 @@ export default function RoomPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(true);
   const [showIntervalSettings, setShowIntervalSettings] = useState(false);
+  const [showAlertSettings, setShowAlertSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -131,6 +134,10 @@ export default function RoomPage() {
     });
 
     newSocket.on('room:state', (data) => {
+      // Check if segment just ended (index increased)
+      if (timerState && data.currentIndex > timerState.currentIndex) {
+        handleSegmentEnd();
+      }
       setTimerState(data);
       if (room) {
         setRoom({ ...room, status: data.status, currentSegmentIndex: data.currentIndex });
@@ -439,9 +446,23 @@ export default function RoomPage() {
         </button>
       )}
 
+      {/* Alerts Settings Button */}
+      <button
+        onClick={() => setShowAlertSettings(true)}
+        className="fixed left-4 bottom-20 btn-secondary rounded-full w-12 h-12 flex items-center justify-center shadow-lg"
+        title="Alert Settings"
+      >
+        🔔
+      </button>
+
       {/* Interval Customizer Modal */}
       {showIntervalSettings && (
         <IntervalCustomizer onClose={() => setShowIntervalSettings(false)} />
+      )}
+
+      {/* Alerts Settings Modal */}
+      {showAlertSettings && (
+        <AlertsSettings onClose={() => setShowAlertSettings(false)} />
       )}
 
       {/* Toast Notifications */}
