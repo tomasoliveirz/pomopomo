@@ -133,11 +133,15 @@ export default function RoomPage() {
       setLoading(false);
     });
 
+    let lastSegmentIndex = -1;
+
     newSocket.on('room:state', (data) => {
       // Check if segment just ended (index increased)
-      if (timerState && data.currentIndex > timerState.currentIndex) {
+      if (data.currentIndex > lastSegmentIndex && lastSegmentIndex >= 0) {
+        console.log('🔔 Segment ended! Triggering alerts...');
         handleSegmentEnd();
       }
+      lastSegmentIndex = data.currentIndex;
       setTimerState(data);
       if (room) {
         setRoom({ ...room, status: data.status, currentSegmentIndex: data.currentIndex });
@@ -153,9 +157,9 @@ export default function RoomPage() {
     });
 
     newSocket.on('segment:consumed', (data) => {
-      // Mark segment as consumed but DON'T remove from list
-      // The currentIndex from timerState will handle which segment is active
-      console.log('Segment consumed (manual skip):', data.segmentId);
+      // Segment was consumed (manual skip or auto-advance)
+      console.log('🔔 Segment consumed, triggering alerts:', data.segmentId);
+      handleSegmentEnd();
     });
 
     // Heartbeat: respond to ping with pong
@@ -449,10 +453,19 @@ export default function RoomPage() {
       {/* Alerts Settings Button */}
       <button
         onClick={() => setShowAlertSettings(true)}
-        className="fixed left-4 bottom-20 btn-secondary rounded-full w-12 h-12 flex items-center justify-center shadow-lg"
+        className="fixed left-4 bottom-20 btn-secondary rounded-full w-12 h-12 flex items-center justify-center shadow-lg relative"
         title="Alert Settings"
       >
         🔔
+        {/* Active indicator dot */}
+        {typeof window !== 'undefined' && (() => {
+          try {
+            const prefs = JSON.parse(localStorage.getItem('pomopomo.alerts:v1') || '{}');
+            return (prefs.chime || prefs.notifications || prefs.vibrate) && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            );
+          } catch { return null; }
+        })()}
       </button>
 
       {/* Interval Customizer Modal */}

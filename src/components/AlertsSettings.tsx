@@ -15,10 +15,34 @@ export default function AlertsSettings({ onClose }: { onClose: () => void }) {
   }, [p]);
 
   const toggle = (k: keyof AlertPrefs) => async () => {
+    // Handle notifications - request permission and test
     if (k === 'notifications' && !p.notifications) {
       const ok = await ensureNotificationPermission();
-      if (!ok) return; // keep off if denied
+      if (!ok) {
+        alert('Notifications blocked. Please enable them in browser settings.');
+        return;
+      }
+      // Test notification immediately
+      setTimeout(() => {
+        new Notification('🍅 Pomopomo Alerts Enabled!', {
+          body: 'You\'ll get notified when segments end.',
+          silent: true,
+          icon: '/tomato.svg',
+        });
+      }, 300);
     }
+    
+    // Handle chime - auto-unlock audio
+    if (k === 'chime' && !p.chime && !p.unlockedAudio) {
+      const ok = await unlockAudioOnce();
+      if (ok) {
+        setP((prev) => ({ ...prev, chime: true, unlockedAudio: true }));
+        // Test sound immediately
+        setTimeout(() => playEndChime({ volume: 0.6, repeats: 1 }), 100);
+        return;
+      }
+    }
+    
     const next = { ...p, [k]: !p[k] as any };
     setP(next);
   };
