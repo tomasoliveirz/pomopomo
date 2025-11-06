@@ -22,6 +22,8 @@ export const config = {
     cors: {
       origin: process.env.NODE_ENV === 'production' 
         ? [
+            'https://pomopomo.site',
+            'https://www.pomopomo.site',
             process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3050',
             'http://51.38.190.126:3050',
             'http://localhost:3050'

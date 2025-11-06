@@ -81,18 +81,11 @@ export default function RoomPage() {
   };
 
   useEffect(() => {
-    console.log('🚀 ROOM PAGE MOUNTED - Code:', code);
     const wsToken = localStorage.getItem('wsToken');
     const participantId = localStorage.getItem('participantId');
     const roomCode = localStorage.getItem('roomCode');
     
-    console.log('📦 localStorage check:');
-    console.log('  - wsToken:', wsToken ? wsToken.substring(0, 50) + '...' : '❌ MISSING');
-    console.log('  - participantId:', participantId || '❌ MISSING');
-    console.log('  - roomCode:', roomCode || '❌ MISSING');
-    
     if (!wsToken) {
-      console.log('⚠️ No wsToken found, showing join form');
       // Show join form instead of redirecting
       setShowJoinForm(true);
       setLoading(false);
@@ -100,8 +93,6 @@ export default function RoomPage() {
     }
 
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
-    console.log('🔌 Connecting to WebSocket:', wsUrl);
-    console.log('🎫 Using token:', wsToken.substring(0, 50) + '...');
     
     const newSocket = io(wsUrl, {
       auth: { token: wsToken },
@@ -109,23 +100,16 @@ export default function RoomPage() {
     });
 
     newSocket.on('connect', () => {
-      console.log('✅ WEBSOCKET CONNECTED! Socket ID:', newSocket.id);
       setLoading(false);
     });
 
     newSocket.on('connect_error', (err) => {
-      console.error('❌ WEBSOCKET CONNECTION ERROR:', err);
-      console.error('   Error message:', err.message);
-      console.error('   Full error:', JSON.stringify(err));
+      console.error('WebSocket connection error:', err.message);
       setError('Failed to connect to room');
       setLoading(false);
     });
 
     newSocket.on('room:joined', (data) => {
-      console.log('🎉 ROOM JOINED EVENT RECEIVED!');
-      console.log('   Room:', data.room.code);
-      console.log('   Me:', data.me.displayName, '(' + data.me.role + ')');
-      console.log('   Participants:', data.participants.length);
       setRoom(data.room);
       setMe(data.me);
       setParticipants(data.participants);
@@ -138,7 +122,6 @@ export default function RoomPage() {
     newSocket.on('room:state', (data) => {
       // Check if segment just ended (index increased)
       if (data.currentIndex > lastSegmentIndex && lastSegmentIndex >= 0) {
-        console.log('🔔 Segment ended! Triggering alerts...');
         handleSegmentEnd();
       }
       lastSegmentIndex = data.currentIndex;
@@ -158,7 +141,6 @@ export default function RoomPage() {
 
     newSocket.on('segment:consumed', (data) => {
       // Segment was consumed (manual skip or auto-advance)
-      console.log('🔔 Segment consumed, triggering alerts:', data.segmentId);
       handleSegmentEnd();
     });
 
