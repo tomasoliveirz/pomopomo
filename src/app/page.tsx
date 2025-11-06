@@ -2,12 +2,15 @@
 
 import { useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
+import AdBanner from '@/components/AdBanner';
 
 export default function HomePage() {
   const router = useRouter();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 gradient-overlay">
+      {/* Header Ad */}
+      <AdBanner />
       <div className="max-w-2xl w-full text-center space-y-8 animate-fade-in">
         <Logo size="large" />
         
@@ -36,6 +39,8 @@ export default function HomePage() {
           </p>
         </div>
       </div>
+      {/* Footer Ad */}
+      <AdBanner />
     </div>
   );
 }

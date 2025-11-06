@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Logo from '../Logo';
+import SharePopup from '../SharePopup';
 import type { Room } from '@/types';
 
 interface RoomHeaderProps {
@@ -13,6 +14,7 @@ interface RoomHeaderProps {
 
 export default function RoomHeader({ room, onShareClick, onChatClick, chatOpen }: RoomHeaderProps) {
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [showSharePopup, setShowSharePopup] = useState(false);
 
   const handleLogoClick = () => {
     setShowExitDialog(true);
@@ -37,21 +39,9 @@ export default function RoomHeader({ room, onShareClick, onChatClick, chatOpen }
           </div>
           
           <button
-            onClick={(e) => {
-              const url = `${window.location.origin}/join?code=${room.code}`;
-              navigator.clipboard.writeText(url).then(() => {
-                const btn = e.currentTarget;
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Link Copied!';
-                btn.classList.add('bg-green-500/20', 'text-green-600');
-                setTimeout(() => {
-                  btn.textContent = originalText;
-                  btn.classList.remove('bg-green-500/20', 'text-green-600');
-                }, 2500);
-              });
-            }}
+            onClick={() => setShowSharePopup(true)}
             className="btn-ghost px-3 py-1 text-sm transition-colors"
-            title="Copy invite link with room code"
+            title="Share room link"
           >
             🔗 Share
           </button>
@@ -89,6 +79,14 @@ export default function RoomHeader({ room, onShareClick, onChatClick, chatOpen }
           </div>
         </div>
       </div>
+    )}
+
+    {/* Share Popup */}
+    {showSharePopup && (
+      <SharePopup
+        shareUrl={`${window.location.origin}/join?code=${room.code}`}
+        onClose={() => setShowSharePopup(false)}
+      />
     )}
   </>
   );

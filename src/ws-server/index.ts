@@ -23,6 +23,9 @@ const io = new Server<ClientEvents, ServerEvents>(httpServer, {
 // Track pending host transfers (grace period for reconnection)
 const pendingHostTransfers = new Map<string, NodeJS.Timeout>();
 
+// Track pending room deletions (30s grace period for reconnection)
+const pendingRoomDeletions = new Map<string, NodeJS.Timeout>();
+
 // Setup Redis adapter for horizontal scaling
 const pubClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
 const subClient = pubClient.duplicate();
@@ -263,6 +266,12 @@ io.on('connection', async (socket: Socket) => {
           
           console.log(`🔄 Transferring host from ${participantId} to ${newHost.id} (${newHost.displayName})`);
           
+          // First, demote the old host to guest
+          await prisma.participant.update({
+            where: { id: participantId },
+            data: { role: 'guest' },
+          }).catch(err => console.log(`⚠️ Could not demote old host (probably deleted): ${err.message}`));
+          
           // Update the new host's role
           await prisma.participant.update({
             where: { id: newHost.id },
@@ -340,20 +349,55 @@ io.on('connection', async (socket: Socket) => {
 
     // 🧹 AUTO-CLEANUP: Delete room if empty (no active participants)
     if (participants.length === 0) {
-      console.log(`🧹 Room ${roomId} is empty, cleaning up...`);
+      console.log(`🧹 Room ${roomId} is empty, starting 30s grace period before deletion...`);
       
-      try {
-        // Delete room from database (CASCADE will delete segments, participants, tasks, messages, proposals)
-        await prisma.room.delete({
-          where: { id: roomId }
-        });
+      // Clear any existing pending deletion for this room
+      const existingDeletion = pendingRoomDeletions.get(roomId);
+      if (existingDeletion) {
+        clearTimeout(existingDeletion);
+      }
+      
+      // Wait 30 seconds before deleting (gives time for reconnection)
+      const deletionTimeout = setTimeout(async () => {
+        console.log(`⏰ Grace period expired for room ${roomId}, checking if deletion needed...`);
         
-        // Delete room data from Redis
-        await deleteRoomData(roomId);
+        // Check if anyone reconnected
+        const currentActiveIds = await getRoomPresence(roomId);
         
-        console.log(`✅ Room ${roomId} cleaned up successfully`);
-      } catch (error) {
-        console.error(`❌ Error cleaning up room ${roomId}:`, error);
+        if (currentActiveIds.length > 0) {
+          console.log(`✅ Someone reconnected to room ${roomId}, canceling deletion`);
+          pendingRoomDeletions.delete(roomId);
+          return;
+        }
+        
+        // Room is still empty, delete it
+        console.log(`🧹 Room ${roomId} still empty, cleaning up...`);
+        
+        try {
+          // Delete room from database (CASCADE will delete segments, participants, tasks, messages, proposals)
+          await prisma.room.delete({
+            where: { id: roomId }
+          });
+          
+          // Delete room data from Redis
+          await deleteRoomData(roomId);
+          
+          console.log(`✅ Room ${roomId} cleaned up successfully`);
+        } catch (error) {
+          console.error(`❌ Error cleaning up room ${roomId}:`, error);
+        }
+        
+        pendingRoomDeletions.delete(roomId);
+      }, 30000); // 30 second grace period
+      
+      pendingRoomDeletions.set(roomId, deletionTimeout);
+    } else {
+      // If there are still participants, cancel any pending deletion
+      const existingDeletion = pendingRoomDeletions.get(roomId);
+      if (existingDeletion) {
+        console.log(`✅ Room ${roomId} has participants again, canceling pending deletion`);
+        clearTimeout(existingDeletion);
+        pendingRoomDeletions.delete(roomId);
       }
     }
   });

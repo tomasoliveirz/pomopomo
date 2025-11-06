@@ -1,0 +1,15 @@
+# ads.txt file for pomopomo.site
+# This file is used to authorize digital sellers to sell ads on your website
+# For more information, visit: https://support.google.com/adsense/answer/7532444
+
+# Google AdSense
+google.com, pub-1657008186985321, DIRECT, f08c47fec0942fa0
+
+# Additional authorized sellers (if applicable)
+# Add other ad networks here as needed
+
+# Contact information
+# Publisher: PomoPomo
+# Website: https://pomopomo.site
+# Contact: tomasferreiradeoliveira@gmail.com
+

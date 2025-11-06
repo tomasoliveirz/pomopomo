@@ -32,16 +32,20 @@ export default function TimerCard({ currentSegment, segments, timerState, isHost
       const interval = setInterval(() => {
         const now = Date.now();
         const remaining = Math.max(0, Math.floor((timerState.segmentEndsAt! - now) / 1000));
-        setTimeRemaining(remaining);
+        
+        // Only update if time actually changed (avoid unnecessary re-renders)
+        if (remaining !== previousTimeRef.current) {
+          setTimeRemaining(remaining);
+          previousTimeRef.current = remaining;
+        }
 
         // Play alarm when timer reaches 0 (only once)
         if (remaining === 0 && !alarmPlayed && currentSegment) {
           alarmPlayed = true;
           const alarmType = currentSegment.kind === 'focus' ? 'break' : 'focus';
-          console.log(`⏰ Playing ${alarmType} alarm for segment:`, currentSegment.label);
           playAlarm(alarmType);
         }
-      }, 100);
+      }, 1000);
 
       return () => clearInterval(interval);
     } else if (timerState.status === 'paused' && timerState.remainingSec !== undefined) {
@@ -86,7 +90,6 @@ export default function TimerCard({ currentSegment, segments, timerState, isHost
     // Play alarm when manually skipping
     if (currentSegment) {
       const alarmType = currentSegment.kind === 'focus' ? 'break' : 'focus';
-      console.log(`⏭ Skip alarm: Playing ${alarmType} alarm for segment:`, currentSegment.label);
       playAlarm(alarmType);
     }
     socket?.emit('queue:skip');

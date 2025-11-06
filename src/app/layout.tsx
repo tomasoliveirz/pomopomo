@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -29,13 +30,14 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fredoka+One&display=swap"
           rel="stylesheet"
         />
-        <script
-          async
+      </head>
+      <body className={inter.variable} data-theme="midnight_bloom">
+        <Script
+          id="adsbygoogle-init"
+          strategy="afterInteractive"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1657008186985321"
           crossOrigin="anonymous"
         />
-      </head>
-      <body className={inter.variable} data-theme="midnight_bloom">
         {children}
       </body>
     </html>
