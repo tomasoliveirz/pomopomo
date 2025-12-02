@@ -95,7 +95,7 @@ export interface ClientEvents {
 
 export interface ServerEvents {
   'room:created': (data: { room: Room; code: string }) => void;
-  'room:joined': (data: { room: Room; me: Participant; participants: Participant[]; queue: Segment[] }) => void;
+  'room:joined': (data: { room: Room; me: Participant; participants: Participant[]; queue: Segment[]; messages: Message[] }) => void;
   'room:state': (data: { status: RoomStatus; currentIndex: number; serverNow: number; segmentEndsAt: number | null; remainingSec?: number }) => void;
   'room:host-transferred': (data: { newHostId: string; newHostName: string; room: Room }) => void;
   'queue:snapshot': (data: { segments: Segment[]; version: number }) => void;
@@ -130,6 +130,7 @@ export interface RoomTimerState {
   segmentEndsAt: number | null; // timestamp
   remainingSec: number; // for paused state
   lastUpdateTime: number;
+  serverNow: number;
 }
 
 

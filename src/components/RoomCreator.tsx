@@ -58,9 +58,8 @@ export default function RoomCreator() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-500 ease-in-out"
+      className="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-500 ease-in-out bg-bg text-text"
       data-theme={selectedTheme}
-      style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
     >
       <motion.div
         initial={{ opacity: 0, y: 20 }}

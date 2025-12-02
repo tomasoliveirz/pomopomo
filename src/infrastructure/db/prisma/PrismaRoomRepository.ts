@@ -3,7 +3,8 @@ import { Room } from '../../../core/domain/entities/Room';
 import { RoomCode } from '../../../core/domain/value-objects/RoomCode';
 import { SessionId } from '../../../core/domain/value-objects/SessionId';
 import { prisma } from './prismaClient';
-import { Theme, RoomStatus } from '../../../core/domain/types';
+import { Theme, RoomStatus, SegmentKind } from '../../../core/domain/types';
+import { Segment } from '../../../core/domain/entities/Segment';
 
 export class PrismaRoomRepository implements IRoomRepository {
     async save(room: Room): Promise<void> {
@@ -73,8 +74,15 @@ export class PrismaRoomRepository implements IRoomRepository {
             startsAt: data.startsAt,
             createdAt: data.createdAt,
             expiresAt: data.expiresAt,
-            segments: [], // TODO: Map segments
-            participants: [], // TODO: Map participants if needed
+            segments: data.segments?.map((s: any) => new Segment({
+                id: s.id,
+                roomId: s.roomId,
+                kind: s.kind as SegmentKind,
+                label: s.label,
+                durationSec: s.durationSec,
+                order: s.order,
+                publicTask: s.publicTask
+            })) || [],
         });
     }
 }

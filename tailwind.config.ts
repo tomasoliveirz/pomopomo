@@ -10,14 +10,14 @@ const config: Config = {
     extend: {
       colors: {
         // Theme colors will be CSS variables
-        bg: 'var(--bg)',
-        card: 'var(--card)',
-        text: 'var(--text)',
-        accent: 'var(--accent)',
-        'accent-subtle': 'var(--accent-subtle)',
-        ring: 'var(--ring)',
-        success: 'var(--success)',
-        warning: 'var(--warning)',
+        bg: 'rgb(var(--bg) / <alpha-value>)',
+        card: 'rgb(var(--card) / <alpha-value>)',
+        text: 'rgb(var(--text) / <alpha-value>)',
+        accent: 'rgb(var(--accent) / <alpha-value>)',
+        'accent-subtle': 'rgb(var(--accent) / 0.25)',
+        ring: 'rgb(var(--ring) / <alpha-value>)',
+        success: 'rgb(var(--success) / <alpha-value>)',
+        warning: 'rgb(var(--warning) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],

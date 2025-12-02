@@ -6,15 +6,29 @@ import { ensureNotificationPermission, unlockAudioOnce, playEndChime } from '@/a
 
 type Tab = 'timer' | 'sounds';
 
+import { motion, AnimatePresence } from 'framer-motion';
+
 export default function RoomSettingsModal({ onClose }: { onClose: () => void }) {
     const [activeTab, setActiveTab] = useState<Tab>('timer');
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
+        >
             {/* Backdrop click to close */}
             <div className="absolute inset-0" onClick={onClose} />
 
-            <div className="relative w-full max-w-md bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/50 overflow-hidden flex flex-col max-h-[85vh]">
+            <motion.div
+                layout
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="relative w-full max-w-md bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/50 overflow-hidden flex flex-col max-h-[85vh]"
+            >
 
                 {/* Header with Tabs */}
                 <div className="p-6 pb-0 shrink-0">
@@ -51,11 +65,36 @@ export default function RoomSettingsModal({ onClose }: { onClose: () => void }) 
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="p-6 overflow-y-auto min-h-0 flex-1">
-                    {activeTab === 'timer' ? <TimerSettings /> : <SoundSettings />}
-                </div>
-            </div>
-        </div>
+                <motion.div
+                    layout
+                    className="p-6 overflow-y-auto min-h-0 flex-1"
+                >
+                    <AnimatePresence mode="wait">
+                        {activeTab === 'timer' ? (
+                            <motion.div
+                                key="timer"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <TimerSettings />
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="sounds"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <SoundSettings />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+            </motion.div>
+        </motion.div>
     );
 }
 

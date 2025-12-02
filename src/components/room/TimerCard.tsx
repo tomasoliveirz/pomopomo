@@ -14,6 +14,7 @@ interface TimerCardProps {
     currentIndex: number;
     segmentEndsAt: number | null;
     remainingSec?: number;
+    serverNow?: number;
   } | null;
   isHost: boolean;
   socket: Socket | null;
@@ -27,26 +28,29 @@ export default function TimerCard({ currentSegment, segments, timerState, isHost
   useEffect(() => {
     if (!timerState) return;
 
-    if (timerState.status === 'running' && timerState.segmentEndsAt) {
-      let alarmPlayed = false; // Track if alarm was already played
+    if (timerState.status === 'running' && timerState.segmentEndsAt && timerState.serverNow) {
+      // Calculate duration remaining on server
+      const serverRemaining = timerState.segmentEndsAt - timerState.serverNow;
+      // Apply to local time to get local target
+      const localEndsAt = Date.now() + serverRemaining;
+
+      let alarmPlayed = false;
 
       const interval = setInterval(() => {
         const now = Date.now();
-        const remaining = Math.max(0, Math.floor((timerState.segmentEndsAt! - now) / 1000));
+        const remaining = Math.max(0, Math.floor((localEndsAt - now) / 1000));
 
-        // Only update if time actually changed (avoid unnecessary re-renders)
         if (remaining !== previousTimeRef.current) {
           setTimeRemaining(remaining);
           previousTimeRef.current = remaining;
         }
 
-        // Play alarm when timer reaches 0 (only once)
         if (remaining === 0 && !alarmPlayed && currentSegment) {
           alarmPlayed = true;
           const alarmType = currentSegment.kind === 'focus' ? 'break' : 'focus';
           playAlarm(alarmType);
         }
-      }, 1000);
+      }, 100); // Check more frequently for smoother updates
 
       return () => clearInterval(interval);
     } else if (timerState.status === 'paused' && timerState.remainingSec !== undefined) {

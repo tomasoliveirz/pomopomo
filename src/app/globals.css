@@ -20,62 +20,61 @@ body {
 
 /* Theme: Lofi Girl - Pastel pinks and purples */
 [data-theme='lofi_girl'] {
-  --bg: #fff0f5;
-  --card: #ffffff;
-  --text: #4a4a4a;
-  --accent: #ffb7b2;
-  --accent-subtle: #ffb7b240;
-  --ring: #ffb7b2;
-  --success: #a8e6cf;
-  --warning: #ffd3b6;
+  --bg: 255 240 245;
+  --card: 255 255 255;
+  --text: 74 74 74;
+  --accent: 255 183 178;
+  --ring: 255 183 178;
+  --success: 168 230 207;
+  --warning: 255 211 182;
 }
 
 /* Theme: Matcha Latte - Soft greens and cream */
 [data-theme='matcha_latte'] {
-  --bg: #f0fff4;
-  --card: #ffffff;
-  --text: #3c5a45;
-  --accent: #9dc08b;
-  --accent-subtle: #9dc08b40;
-  --ring: #9dc08b;
-  --success: #a8e6cf;
-  --warning: #ffd3b6;
+  --bg: 240 255 244;
+  --card: 255 255 255;
+  --text: 60 90 69;
+  --accent: 157 192 139;
+  --ring: 157 192 139;
+  --success: 168 230 207;
+  --warning: 255 211 182;
 }
 
 /* Theme: Sky Blue - Light blues and white */
 [data-theme='sky_blue'] {
-  --bg: #f0f8ff;
-  --card: #ffffff;
-  --text: #4a5568;
-  --accent: #87ceeb;
-  --accent-subtle: #87ceeb40;
-  --ring: #87ceeb;
-  --success: #a8e6cf;
-  --warning: #ffd3b6;
+  --bg: 240 248 255;
+  --card: 255 255 255;
+  --text: 74 85 104;
+  --accent: 135 206 235;
+  --ring: 135 206 235;
+  --success: 168 230 207;
+  --warning: 255 211 182;
 }
 
-/* Theme: Night Mode - Soft dark blue-grey */
+/* Theme: Night Mode - Slate Palette */
 [data-theme='night_mode'] {
-  --bg: #2d3748;
-  --card: #4a5568;
-  --text: #e2e8f0;
-  --accent: #718096;
-  --accent-subtle: #71809640;
-  --ring: #718096;
-  --success: #68d391;
-  --warning: #f6ad55;
+  --bg: 15 23 42;
+  /* Slate 900 */
+  --card: 30 41 59;
+  /* Slate 800 */
+  --text: 241 245 249;
+  /* Slate 100 */
+  --accent: 148 163 184;
+  /* Slate 400 */
+  --ring: 148 163 184;
+  --success: 104 211 145;
+  --warning: 246 173 85;
 }
 
 /* Theme: Strawberry - Soft reds and pinks */
 [data-theme='strawberry'] {
-  --bg: #fff5f5;
-  --card: #ffffff;
-  --text: #742a2a;
-  --accent: #fc8181;
-  --accent-subtle: #fc818140;
-  --ring: #fc8181;
-  --success: #68d391;
-  --warning: #f6ad55;
+  --bg: 255 245 245;
+  --card: 255 255 255;
+  --text: 116 42 42;
+  --accent: 252 129 129;
+  --ring: 252 129 129;
+  --success: 104 211 145;
+  --warning: 246 173 85;
 }
 
 body {

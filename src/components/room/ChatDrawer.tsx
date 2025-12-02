@@ -39,7 +39,7 @@ export default function ChatDrawer({ open, messages, participants, socket, onClo
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: -350, opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed left-4 top-4 bottom-24 w-80 bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-white/40 z-40 flex flex-col overflow-hidden"
+          className="fixed left-4 top-24 bottom-24 w-80 bg-card/80 backdrop-blur-xl rounded-[2.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-white/40 z-40 flex flex-col overflow-hidden"
         >
           {/* Header */}
           <div className="p-6 border-b border-white/20 flex items-center justify-between bg-white/30">
