@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
@@ -10,7 +10,12 @@ export const metadata: Metadata = {
   description: 'A clean, theme-able, privacy-first Pomodoro web app for solo or group focus sessions',
   keywords: 'pomodoro, focus, productivity, timer, group study',
   authors: [{ name: 'POMOPOMO' }],
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
   themeColor: '#818cf8',
 };
 
