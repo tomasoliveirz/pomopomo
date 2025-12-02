@@ -45,17 +45,7 @@ export async function getRoomTimerState(roomId: string): Promise<RoomTimerState 
   }
 }
 
-/**
- * Delete room timer state from Redis
- */
-export async function deleteRoomTimerState(roomId: string): Promise<void> {
-  try {
-    const client = await getRedisClient();
-    await client.del(`room:timer:${roomId}`);
-  } catch (error) {
-    console.error('Error deleting room timer state:', error);
-  }
-}
+
 
 /**
  * Rate limiting check using Redis
@@ -69,12 +59,12 @@ export async function checkRateLimit(
     const client = await getRedisClient();
     const key = `rate:${identifier}`;
     const current = await client.incr(key);
-    
+
     if (current === 1) {
       // First request in window, set expiry
       await client.pExpire(key, windowMs);
     }
-    
+
     return current <= maxRequests;
   } catch (error) {
     console.error('Error checking rate limit:', error);

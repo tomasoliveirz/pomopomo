@@ -14,7 +14,7 @@ export function showEndNotification(opts?: { title?: string; body?: string }) {
     body: opts?.body ?? 'Focus block finished. Ready for the next segment?',
     tag: 'pomopomo-timer',
     silent: false,
-    icon: '/tomato.svg',
+    icon: '/branding/logo.svg',
   });
 }
 

@@ -1,5 +1,5 @@
 // Core types matching Prisma schema
-export type Theme = 
+export type Theme =
   | 'midnight_bloom'
   | 'lilac_mist'
   | 'solar_cream'
@@ -118,32 +118,6 @@ export interface ServerEvents {
   'ping': (data: { timestamp: number }) => void;
 }
 
-// API Response types
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-export interface CreateRoomResponse {
-  room: Room;
-  code: string;
-  wsToken: string;
-}
-
-export interface JoinRoomResponse {
-  participant: Participant;
-  room: Room;
-  wsToken: string;
-}
-
-export interface RoomHistoryResponse {
-  room: Room;
-  segments: Segment[];
-  participantCount: number;
-  totalFocusMinutes: number;
-}
-
 // WebSocket JWT payload
 export interface WsTokenPayload {
   roomId: string;
@@ -162,10 +136,6 @@ export interface RoomTimerState {
   lastUpdateTime: number;
 }
 
-// Client preferences (localStorage)
-export interface ClientPreferences {
-  tickEnabled: boolean;
-  compactUI: boolean;
-  theme?: Theme;
-}
+
+
 
