@@ -21,10 +21,11 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
-        display: ['var(--font-display)', 'cursive'],
+        display: ['var(--font-sans)', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
-        'card': '16px',
+        'card': '32px',
+        'pill': '9999px',
       },
     },
   },

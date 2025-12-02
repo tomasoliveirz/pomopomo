@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { loadPrefs, savePrefs, AlertPrefs } from '@/alerts/prefs';
 import { ensureNotificationPermission, unlockAudioOnce, playEndChime } from '@/alerts/helpers';
 
-export default function AlertsSettings({ onClose }: { onClose: () => void }) {
+export function AlertsContent() {
   const [p, setP] = useState<AlertPrefs>(loadPrefs());
   const [saved, setSaved] = useState(false);
 
@@ -24,7 +24,7 @@ export default function AlertsSettings({ onClose }: { onClose: () => void }) {
       }
       // Test notification immediately
       setTimeout(() => {
-        new Notification('🍅 Pomopomo Alerts Enabled!', {
+        new Notification('POMOPOMO Alerts Enabled!', {
           body: 'You\'ll get notified when segments end.',
           silent: true,
           icon: '/branding/logo.svg',
@@ -54,24 +54,14 @@ export default function AlertsSettings({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="max-w-md w-full rounded-2xl p-4 md:p-6 bg-card text-foreground shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">🔔 Alert Settings</h3>
-          <button
-            onClick={onClose}
-            className="text-2xl w-8 h-8 flex items-center justify-center hover:bg-accent-subtle/20 rounded-lg"
-          >
-            ×
-          </button>
+    <div className="space-y-6">
+      {saved && (
+        <div className="text-sm font-bold text-center py-2 bg-accent/10 text-accent rounded-xl animate-fade-in">
+          ✓ Saved
         </div>
+      )}
 
-        {saved && (
-          <div className="text-sm text-center py-2 bg-accent/10 text-accent rounded-lg">
-            ✓ Saved
-          </div>
-        )}
-
+      <div className="space-y-2">
         <Row
           label="🔔 End chime"
           desc="Short high-pitch pop when a segment ends."
@@ -81,7 +71,7 @@ export default function AlertsSettings({ onClose }: { onClose: () => void }) {
 
         <Row
           label="📢 Boost loudness"
-          desc="Slightly louder/denser chime (cuts through music)."
+          desc="Slightly louder/denser chime."
           disabled={!p.chime}
           onClick={toggle('boosted')}
           active={p.boosted}
@@ -109,27 +99,47 @@ export default function AlertsSettings({ onClose }: { onClose: () => void }) {
           onClick={toggle('vibrate')}
           active={p.vibrate}
         />
+      </div>
 
-        <div className="pt-4 border-t border-accent-subtle/20">
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={testSound}
-              className="px-4 py-2 rounded-xl bg-accent text-white hover:opacity-90 active:opacity-80 font-medium"
-            >
-              🎵 Test Sound
-            </button>
-            {!p.unlockedAudio && (
-              <span className="text-sm opacity-70">
-                Tap "Test Sound" once to enable audio on iOS.
-              </span>
-            )}
-          </div>
+      <div className="pt-6 border-t border-black/5">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={testSound}
+            className="px-6 py-3 rounded-2xl bg-accent text-white hover:scale-105 active:scale-95 transition-all shadow-[0_10px_20px_-5px_rgba(var(--accent-rgb),0.3)] font-bold text-sm"
+          >
+            🎵 Test Sound
+          </button>
+          {!p.unlockedAudio && (
+            <span className="text-xs font-medium opacity-60 max-w-[200px] leading-tight">
+              Tap "Test Sound" once to enable audio on iOS.
+            </span>
+          )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AlertsSettings({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="max-w-md w-full rounded-[2.5rem] p-8 bg-white/90 backdrop-blur-xl text-text shadow-[0_20px_50px_rgba(0,0,0,0.1)] space-y-6 max-h-[90vh] overflow-y-auto border border-white/50">
+        <div className="flex items-center justify-between">
+          <h3 className="text-2xl font-bold font-display tracking-tight text-text/90">🔔 Alert Settings</h3>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 flex items-center justify-center hover:bg-black/5 rounded-full transition-colors text-xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <AlertsContent />
 
         <div className="pt-2">
           <button
             onClick={onClose}
-            className="w-full py-2 px-4 rounded-xl bg-accent-subtle/20 hover:bg-accent-subtle/30 font-medium"
+            className="w-full py-4 px-6 rounded-2xl bg-gray-100 hover:bg-gray-200 font-bold text-text/70 hover:text-text transition-all active:scale-[0.98]"
           >
             Done
           </button>
