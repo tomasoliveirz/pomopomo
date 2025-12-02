@@ -1,10 +1,9 @@
 #!/usr/bin/env tsx
-import { PrismaClient } from '@prisma/client';
-import { createClient } from 'redis';
+import { prisma } from '../../src/infrastructure/db/prisma/prismaClient';
+import { getRedisClient } from '../../src/infrastructure/cache/redisClient';
 
-const prisma = new PrismaClient();
-const redis = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
-redis.on('error', (err) => console.error('Redis Client Error', err));
+// We need to wait for redis client
+const redis = await getRedisClient();
 
 
 interface DailyStats {
@@ -211,7 +210,6 @@ async function main() {
   try {
     console.log('🚀 Iniciando limpeza de salas...\n');
 
-    await redis.connect();
 
     // 1. Coletar estatísticas antes de limpar
     await collectStatistics();
@@ -232,6 +230,8 @@ async function main() {
     process.exit(1);
   } finally {
     await prisma.$disconnect();
+    // redis.quit() is handled by closeRedisConnection if we import it, 
+    // or we can just call quit on the client instance we have.
     await redis.quit();
   }
 }

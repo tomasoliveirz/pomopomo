@@ -25,14 +25,14 @@ export default function AdBanner({ adSlot = '9874187873', style }: AdBannerProps
 	useEffect(() => {
 		const pushAd = () => {
 			if (pushedRef.current) return;
-			
+
 			if (typeof window !== 'undefined' && insRef.current) {
 				try {
 					// Initialize adsbygoogle array if it doesn't exist
 					if (!window.adsbygoogle) {
 						window.adsbygoogle = [];
 					}
-					
+
 					// Push the ad
 					window.adsbygoogle.push({});
 					pushedRef.current = true;
@@ -61,7 +61,7 @@ export default function AdBanner({ adSlot = '9874187873', style }: AdBannerProps
 
 			// Check if script already exists (from layout.tsx)
 			const scriptExists = checkForExistingScript();
-			
+
 			if (scriptExists) {
 				// Script is already in head, wait a bit for it to load then push
 				// The script from layout.tsx is async, so we need to wait
@@ -96,7 +96,7 @@ export default function AdBanner({ adSlot = '9874187873', style }: AdBannerProps
 					script.async = true;
 					script.crossOrigin = 'anonymous';
 					script.id = 'adsbygoogle-js';
-					
+
 					script.onload = () => {
 						scriptLoaded = true;
 						pushAd();
@@ -118,10 +118,10 @@ export default function AdBanner({ adSlot = '9874187873', style }: AdBannerProps
 	}, []);
 
 	return (
-		<div className="flex w-full items-center justify-center py-4">
+		<div className="flex w-full items-center justify-center min-h-0">
 			<ins
 				ref={insRef as any}
-				className="adsbygoogle"
+				className="adsbygoogle my-4"
 				style={style || { display: 'inline-block', width: 728, height: 90 }}
 				data-ad-client="ca-pub-1657008186985321"
 				data-ad-slot={adSlot}

@@ -6,7 +6,6 @@ import AdBanner from '@/components/AdBanner';
 export default function CreatePage() {
   return (
     <div className="min-h-screen flex flex-col">
-      <AdBanner />
       <RoomCreator />
       <AdBanner />
     </div>

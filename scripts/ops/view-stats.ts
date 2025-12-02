@@ -1,11 +1,9 @@
 #!/usr/bin/env tsx
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../src/infrastructure/db/prisma/prismaClient';
 
 async function showCurrentRooms() {
   console.log('📊 Salas Atuais no Sistema\n');
-  
+
   const rooms = await prisma.room.findMany({
     include: {
       participants: true,
@@ -52,7 +50,7 @@ async function showCurrentRooms() {
 
 async function showHistoricalStats() {
   console.log('📈 Estatísticas Históricas\n');
-  
+
   const stats = await prisma.dailyStatistic.findMany({
     orderBy: { date: 'desc' },
   });
@@ -67,7 +65,7 @@ async function showHistoricalStats() {
   // Mostrar últimos 30 dias
   const recentStats = stats.slice(0, 30);
   console.log('   Últimos 30 dias:\n');
-  
+
   for (const stat of recentStats) {
     const date = stat.date.toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -108,7 +106,7 @@ async function showHistoricalStats() {
   const avgParticipants = (totals.participants / stats.length).toFixed(2);
   const avgSessions = (totals.sessions / stats.length).toFixed(2);
   const avgFocusMinutes = (totals.focusMinutes / stats.length).toFixed(2);
-  
+
   console.log(`     Salas: ${avgRooms}`);
   console.log(`     Participantes: ${avgParticipants}`);
   console.log(`     Sessões: ${avgSessions}`);
