@@ -6,6 +6,8 @@ import type { Socket } from 'socket.io-client';
 import { getCustomIntervals } from '../IntervalCustomizer';
 import InlineSegmentSheet from './InlineSegmentSheet';
 
+import { usePersistentIntervals } from '@/hooks/useIntervals';
+
 interface QueuePanelProps {
   segments: Segment[];
   currentIndex: number;
@@ -34,39 +36,29 @@ export default function QueuePanel({
   timerState,
   onClose,
 }: QueuePanelProps) {
+  const intervals = usePersistentIntervals();
   const [editMode, setEditMode] = useState(false);
   const [localSegments, setLocalSegments] = useState<Segment[]>(segments);
   const [expandedSegmentId, setExpandedSegmentId] = useState<string | null>(null);
-  const [segmentPresets, setSegmentPresets] = useState<
-    { kind: SegmentKind; label: string; durationSec: number; emoji: string }[]
-  >([]);
+
 
   useEffect(() => {
     setLocalSegments(segments);
   }, [segments]);
 
   useEffect(() => {
-    // Load custom intervals from localStorage
-    const intervals = getCustomIntervals();
-    setSegmentPresets([
-      { kind: 'focus', label: 'Focus', durationSec: intervals.focusDuration * 60, emoji: '🎯' },
-      {
-        kind: 'break',
-        label: 'Short Break',
-        durationSec: intervals.shortBreakDuration * 60,
-        emoji: '☕',
-      },
-      {
-        kind: 'long_break',
-        label: 'Long Break',
-        durationSec: intervals.longBreakDuration * 60,
-        emoji: '🌴',
-      },
-      { kind: 'custom', label: 'Custom', durationSec: 10 * 60, emoji: '✨' },
-    ]);
-  }, []);
+    setLocalSegments(segments);
+  }, [segments]);
 
-  const addSegment = (preset: typeof segmentPresets[0]) => {
+  // Dynamic presets from hook
+  const segmentPresets = [
+    { kind: 'focus', label: 'Focus', durationSec: intervals.focusDuration * 60, emoji: '🎯' },
+    { kind: 'break', label: 'Short Break', durationSec: intervals.shortBreakDuration * 60, emoji: '☕' },
+    { kind: 'long_break', label: 'Long Break', durationSec: intervals.longBreakDuration * 60, emoji: '🌴' },
+    { kind: 'custom', label: 'Custom', durationSec: 10 * 60, emoji: '✨' },
+  ] as const;
+
+  const addSegment = (preset: { kind: SegmentKind; label: string; durationSec: number; emoji: string }) => {
     const newSegment: Segment = {
       id: `temp-${Date.now()}`,
       kind: preset.kind,
@@ -121,14 +113,14 @@ export default function QueuePanel({
   // Calculate predicted end time for a segment
   const getPredictedEndTime = (segmentIndex: number): string | null => {
     if (editMode) return null;
-    
+
     const segsToUse = displaySegments;
-    
+
     // If segment is in the past, don't show time
     if (segmentIndex < currentIndex) return null;
-    
+
     let baseTime: number;
-    
+
     if (segmentIndex === currentIndex) {
       // Current segment: use segmentEndsAt if available
       if (timerState?.segmentEndsAt) {
@@ -148,7 +140,7 @@ export default function QueuePanel({
           baseTime += (segsToUse[currentIndex]?.durationSec || 0) * 1000;
         }
       }
-      
+
       // Add durations of all segments between current and this one
       for (let i = currentIndex + 1; i <= segmentIndex; i++) {
         if (i < segsToUse.length) {
@@ -156,27 +148,30 @@ export default function QueuePanel({
         }
       }
     }
-    
+
     // Format time in local timezone
     const endDate = new Date(baseTime);
-    return endDate.toLocaleTimeString('pt-PT', { 
-      hour: '2-digit', 
+    return endDate.toLocaleTimeString('pt-PT', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: false 
+      hour12: false
     });
   };
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-card/50">
+    <div className="h-full min-h-0 flex flex-col bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-white/40 overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-accent-subtle/20 flex items-center justify-between shrink-0">
+      <div className="p-6 pb-4 flex items-center justify-between shrink-0">
         <div>
-          <h3 className="font-semibold text-lg">Queue</h3>
-          <p className="text-xs opacity-60 mt-0.5">
+          <h3 className="font-bold text-2xl font-display tracking-tight text-text/90">Queue</h3>
+          <p className="text-xs font-medium opacity-50 mt-1">
             {role === 'host' ? 'Everyone can see • You can edit' : 'Visible to everyone'}
           </p>
         </div>
-        <button onClick={onClose} className="btn-ghost px-2 py-1 text-sm">
+        <button
+          onClick={onClose}
+          className="w-10 h-10 flex items-center justify-center hover:bg-black/5 rounded-full transition-colors text-lg"
+        >
           ✕
         </button>
       </div>
@@ -187,12 +182,12 @@ export default function QueuePanel({
           <div className="text-center py-8 text-sm opacity-60">
             {role === 'host' ? (
               <>
-                <div className="text-2xl mb-2">🎯</div>
+                <div className="text-4xl mb-2 opacity-50">✨</div>
                 <p>Add segments to build your focus queue</p>
               </>
             ) : (
               <>
-                <div className="text-2xl mb-2">⏳</div>
+                <div className="text-4xl mb-2 opacity-50">⏳</div>
                 <p>Waiting for host to build the queue...</p>
               </>
             )}

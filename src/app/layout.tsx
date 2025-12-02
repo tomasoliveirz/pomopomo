@@ -1,9 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Nunito } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+const nunito = Nunito({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  weight: ['200', '300', '400', '500', '600', '700', '800', '900'],
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'POMOPOMO - Focus Together',
@@ -29,20 +34,16 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/branding/logo.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/branding/logo.svg" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fredoka+One&display=swap"
-          rel="stylesheet"
-        />
       </head>
-      <body className={inter.variable} data-theme="midnight_bloom">
-        <Script
-          id="adsbygoogle-init"
-          strategy="afterInteractive"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1657008186985321"
-          crossOrigin="anonymous"
-        />
+      <body className={`${nunito.variable} font-sans`} data-theme="midnight_bloom">
+        {process.env.NODE_ENV === 'production' && (
+          <Script
+            id="adsbygoogle-init"
+            strategy="afterInteractive"
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1657008186985321"
+            crossOrigin="anonymous"
+          />
+        )}
         {children}
       </body>
     </html>

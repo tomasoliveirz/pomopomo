@@ -11,15 +11,11 @@ datasource db {
 }
 
 enum Theme {
-  midnight_bloom
-  lilac_mist
-  solar_cream
-  verdant_dew
-  sakura_ink
-  arctic_drift
-  amber_dusk
-  coral_velvet
-  noir_mint
+  lofi_girl
+  matcha_latte
+  sky_blue
+  night_mode
+  strawberry
 }
 
 enum RoomStatus {
@@ -62,7 +58,7 @@ model Room {
   id                  String       @id @default(uuid())
   code                String       @unique
   hostSessionId       String       @map("host_session_id")
-  theme               Theme        @default(midnight_bloom)
+  theme               Theme        @default(lofi_girl)
   status              RoomStatus   @default(idle)
   currentSegmentIndex Int          @default(0) @map("current_segment_index")
   startsAt            DateTime?    @map("starts_at")

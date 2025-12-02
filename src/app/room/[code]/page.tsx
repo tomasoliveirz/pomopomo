@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
 import RoomHeader from '@/components/room/RoomHeader';
+import Logo from '@/components/Logo';
 import TimerCard from '@/components/room/TimerCard';
 import QueuePanel from '@/components/room/QueuePanel';
 import ChatDrawer from '@/components/room/ChatDrawer';
@@ -11,6 +12,8 @@ import MemberList from '@/components/room/MemberList';
 import IntervalCustomizer from '@/components/IntervalCustomizer';
 import AlertsSettings from '@/components/AlertsSettings';
 import Toast from '@/components/Toast';
+import ControlDock from '@/components/room/ControlDock';
+import RoomSettingsModal from '@/components/room/RoomSettingsModal';
 import { handleSegmentEnd } from '@/alerts/engine';
 import type { Room, Participant, Segment, Message, RoomStatus } from '@/types';
 
@@ -36,8 +39,8 @@ export default function RoomPage() {
 
   const [chatOpen, setChatOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(true);
-  const [showIntervalSettings, setShowIntervalSettings] = useState(false);
-  const [showAlertSettings, setShowAlertSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'timer' | 'sounds'>('timer');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -84,7 +87,7 @@ export default function RoomPage() {
     const wsToken = localStorage.getItem('wsToken');
     const participantId = localStorage.getItem('participantId');
     const roomCode = localStorage.getItem('roomCode');
-    
+
     if (!wsToken) {
       // Show join form instead of redirecting
       setShowJoinForm(true);
@@ -93,7 +96,7 @@ export default function RoomPage() {
     }
 
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
-    
+
     const newSocket = io(wsUrl, {
       auth: { token: wsToken },
       transports: ['websocket', 'polling'],
@@ -156,7 +159,7 @@ export default function RoomPage() {
         const existingIndex = tasks.findIndex(
           (t) => t.participantId === data.participantId && t.visibility === 'private'
         );
-        
+
         const newTask = {
           id: `${data.segmentId}-${data.participantId}`,
           segmentId: data.segmentId,
@@ -219,7 +222,7 @@ export default function RoomPage() {
       setRoom(data.room);
       setToastMessage(`🎉 ${data.newHostName} is now the host!`);
       setTimeout(() => setToastMessage(null), 4000);
-      
+
       // If I'm the new host, refresh to get full permissions
       if (me && data.newHostId === me.id) {
         setToastMessage('🎉 You are now the host! Refreshing...');
@@ -252,11 +255,16 @@ export default function RoomPage() {
     }
   }, [room?.theme]);
 
+  // Calculate unread messages (mock logic or real if available)
+  const unreadMessages = 0; // You might want to implement real unread count later
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-4 animate-pulse-slow">🍅</div>
+          <div className="mb-4 animate-pulse-slow">
+            <Logo size="large" />
+          </div>
           <div className="text-xl">Loading room...</div>
         </div>
       </div>
@@ -269,7 +277,9 @@ export default function RoomPage() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="card max-w-md w-full">
           <div className="text-center mb-6">
-            <div className="text-5xl mb-4">🍅</div>
+            <div className="mb-4 flex justify-center">
+              <Logo size="large" />
+            </div>
             <h1 className="text-2xl font-bold mb-2">Join Room</h1>
             <p className="text-sm opacity-60">Room code: <span className="font-mono font-semibold">{code}</span></p>
           </div>
@@ -321,7 +331,9 @@ export default function RoomPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="card max-w-md text-center">
-          <div className="text-4xl mb-4">😕</div>
+          <div className="mb-4 flex justify-center">
+            <Logo size="large" />
+          </div>
           <h2 className="text-xl font-semibold mb-2">Connection Error</h2>
           <p className="mb-4">{error}</p>
           <button onClick={() => router.push('/')} className="btn-primary">
@@ -335,13 +347,12 @@ export default function RoomPage() {
   if (!room || !me) return null;
 
   return (
-    <div className="h-dvh min-h-0 flex flex-col overscroll-none">
+    <div className="h-dvh min-h-0 flex flex-col overscroll-none bg-bg text-text transition-colors duration-500">
       <RoomHeader
         room={room}
         onShareClick={() => {
           const url = `${window.location.origin}/room/${room.code}`;
           navigator.clipboard.writeText(url).then(() => {
-            // Show success message
             const btn = document.querySelector('[title="Share room link"]');
             if (btn) {
               const original = btn.textContent;
@@ -352,8 +363,6 @@ export default function RoomPage() {
             }
           });
         }}
-        onChatClick={() => setChatOpen(!chatOpen)}
-        chatOpen={chatOpen}
       />
 
       {error && (
@@ -362,9 +371,9 @@ export default function RoomPage() {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* Main Content */}
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-4 space-y-6 overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
+        {/* Main Content - Centered Timer */}
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-4 space-y-6 overflow-hidden z-0">
           <TimerCard
             currentSegment={segments[timerState?.currentIndex ?? 0]}
             segments={segments}
@@ -376,9 +385,9 @@ export default function RoomPage() {
           <MemberList participants={participants} hostSessionId={room.hostSessionId} />
         </div>
 
-        {/* Queue Panel */}
+        {/* Queue Panel - Floating Overlay (Now on Right) */}
         {queueOpen && (
-          <div className="w-96 h-full min-h-0 border-l border-accent-subtle/20 flex flex-col overflow-hidden">
+          <div className="absolute top-4 bottom-24 right-4 w-96 max-w-[calc(100vw-2rem)] z-20 animate-slide-in-right">
             <QueuePanel
               segments={segments}
               currentIndex={timerState?.currentIndex ?? 0}
@@ -393,74 +402,44 @@ export default function RoomPage() {
           </div>
         )}
 
+        {/* Chat Drawer - Floating Overlay (Now on Left) */}
+        <ChatDrawer
+          open={chatOpen}
+          messages={messages}
+          participants={participants}
+          socket={socket}
+          onClose={() => setChatOpen(false)}
+        />
+
         {/* Toast Notification */}
         {toastMessage && (
-          <div className="fixed top-4 right-4 z-50 bg-accent text-white px-4 py-3 rounded-lg shadow-lg animate-fade-in">
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-accent text-white px-6 py-3 rounded-full shadow-lg animate-fade-in-down font-medium">
             {toastMessage}
           </div>
         )}
       </div>
 
-      {/* Chat Drawer */}
-      <ChatDrawer
-        open={chatOpen}
-        messages={messages}
-        participants={participants}
-        socket={socket}
-        onClose={() => setChatOpen(false)}
+      {/* Control Dock */}
+      <ControlDock
+        onToggleQueue={() => setQueueOpen(!queueOpen)}
+        onToggleChat={() => setChatOpen(!chatOpen)}
+        onOpenSettings={() => {
+          setSettingsTab('timer');
+          setShowSettings(true);
+        }}
+        queueOpen={queueOpen}
+        chatOpen={chatOpen}
+        unreadMessages={unreadMessages}
       />
 
-      {/* Queue Toggle Button */}
-      {!queueOpen && (
-        <button
-          onClick={() => setQueueOpen(true)}
-          className="fixed right-4 top-20 btn-primary rounded-full w-12 h-12 flex items-center justify-center shadow-lg"
-          title="Open Queue"
-        >
-          📋
-        </button>
+      {/* Unified Settings Modal */}
+      {showSettings && (
+        <RoomSettingsModal
+          onClose={() => setShowSettings(false)}
+        />
       )}
 
-      {/* Interval Settings Button (Host only) */}
-      {me.role === 'host' && (
-        <button
-          onClick={() => setShowIntervalSettings(true)}
-          className="fixed right-4 bottom-20 btn-secondary rounded-full w-12 h-12 flex items-center justify-center shadow-lg"
-          title="Interval Settings"
-        >
-          ⚙️
-        </button>
-      )}
-
-      {/* Alerts Settings Button */}
-      <button
-        onClick={() => setShowAlertSettings(true)}
-        className="fixed left-4 bottom-20 btn-secondary rounded-full w-12 h-12 flex items-center justify-center shadow-lg relative"
-        title="Alert Settings"
-      >
-        🔔
-        {/* Active indicator dot */}
-        {typeof window !== 'undefined' && (() => {
-          try {
-            const prefs = JSON.parse(localStorage.getItem('pomopomo.alerts:v1') || '{}');
-            return (prefs.chime || prefs.notifications || prefs.vibrate) && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            );
-          } catch { return null; }
-        })()}
-      </button>
-
-      {/* Interval Customizer Modal */}
-      {showIntervalSettings && (
-        <IntervalCustomizer onClose={() => setShowIntervalSettings(false)} />
-      )}
-
-      {/* Alerts Settings Modal */}
-      {showAlertSettings && (
-        <AlertsSettings onClose={() => setShowAlertSettings(false)} />
-      )}
-
-      {/* Toast Notifications */}
+      {/* Toast Notifications Component */}
       {toastMessage && (
         <Toast
           message={toastMessage}

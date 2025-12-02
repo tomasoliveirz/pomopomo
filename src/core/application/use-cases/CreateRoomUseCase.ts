@@ -40,7 +40,7 @@ export class CreateRoomUseCase {
             id: uuidv4(),
             code: code,
             hostSessionId: sessionId,
-            theme: input.theme || 'midnight_bloom',
+            theme: input.theme || 'lofi_girl',
             status: 'idle',
             currentSegmentIndex: 0,
             createdAt: now,

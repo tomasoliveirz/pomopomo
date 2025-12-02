@@ -1,14 +1,10 @@
 // Core types matching Prisma schema
 export type Theme =
-  | 'midnight_bloom'
-  | 'lilac_mist'
-  | 'solar_cream'
-  | 'verdant_dew'
-  | 'sakura_ink'
-  | 'arctic_drift'
-  | 'amber_dusk'
-  | 'coral_velvet'
-  | 'noir_mint';
+  | 'lofi_girl'
+  | 'matcha_latte'
+  | 'sky_blue'
+  | 'night_mode'
+  | 'strawberry';
 export type SegmentKind = 'focus' | 'break' | 'long_break' | 'custom';
 export type RoomStatus = 'idle' | 'running' | 'paused' | 'ended';
 export type Role = 'host' | 'guest';

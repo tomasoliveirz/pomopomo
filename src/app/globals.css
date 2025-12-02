@@ -18,112 +18,64 @@ body {
   overflow: hidden;
 }
 
-/* Theme: Midnight Bloom - Deep focus, cosmic lavender */
-[data-theme='midnight_bloom'] {
-  --bg: #121524;
-  --card: #1b2033;
-  --text: #e4e7f5;
-  --accent: #8b5cf6;
-  --accent-subtle: #8b5cf620;
-  --ring: #8b5cf6;
-  --success: #10b981;
-  --warning: #f59e0b;
-}
-
-/* Theme: Lilac Mist - Gentle pastel productivity */
-[data-theme='lilac_mist'] {
-  --bg: #f8f7ff;
+/* Theme: Lofi Girl - Pastel pinks and purples */
+[data-theme='lofi_girl'] {
+  --bg: #fff0f5;
   --card: #ffffff;
-  --text: #2e2a3b;
-  --accent: #a78bfa;
-  --accent-subtle: #c4b5fd30;
-  --ring: #a78bfa;
-  --success: #10b981;
-  --warning: #f59e0b;
+  --text: #4a4a4a;
+  --accent: #ffb7b2;
+  --accent-subtle: #ffb7b240;
+  --ring: #ffb7b2;
+  --success: #a8e6cf;
+  --warning: #ffd3b6;
 }
 
-/* Theme: Solar Cream - Soft daylight, cozy warmth */
-[data-theme='solar_cream'] {
-  --bg: #fffdf6;
+/* Theme: Matcha Latte - Soft greens and cream */
+[data-theme='matcha_latte'] {
+  --bg: #f0fff4;
   --card: #ffffff;
-  --text: #3a2f22;
-  --accent: #f4b400;
-  --accent-subtle: #fde68a40;
-  --ring: #f4b400;
-  --success: #10b981;
-  --warning: #f59e0b;
+  --text: #3c5a45;
+  --accent: #9dc08b;
+  --accent-subtle: #9dc08b40;
+  --ring: #9dc08b;
+  --success: #a8e6cf;
+  --warning: #ffd3b6;
 }
 
-/* Theme: Verdant Dew - Morning calm and freshness */
-[data-theme='verdant_dew'] {
-  --bg: #f5fff8;
+/* Theme: Sky Blue - Light blues and white */
+[data-theme='sky_blue'] {
+  --bg: #f0f8ff;
   --card: #ffffff;
-  --text: #1f2937;
-  --accent: #34d399;
-  --accent-subtle: #a7f3d040;
-  --ring: #34d399;
-  --success: #10b981;
-  --warning: #f59e0b;
+  --text: #4a5568;
+  --accent: #87ceeb;
+  --accent-subtle: #87ceeb40;
+  --ring: #87ceeb;
+  --success: #a8e6cf;
+  --warning: #ffd3b6;
 }
 
-/* Theme: Sakura Ink - Japanese minimal blush & ink */
-[data-theme='sakura_ink'] {
-  --bg: #fff9fa;
+/* Theme: Night Mode - Soft dark blue-grey */
+[data-theme='night_mode'] {
+  --bg: #2d3748;
+  --card: #4a5568;
+  --text: #e2e8f0;
+  --accent: #718096;
+  --accent-subtle: #71809640;
+  --ring: #718096;
+  --success: #68d391;
+  --warning: #f6ad55;
+}
+
+/* Theme: Strawberry - Soft reds and pinks */
+[data-theme='strawberry'] {
+  --bg: #fff5f5;
   --card: #ffffff;
-  --text: #2d2d2d;
-  --accent: #f472b6;
-  --accent-subtle: #fbcfe820;
-  --ring: #f472b6;
-  --success: #10b981;
-  --warning: #f59e0b;
-}
-
-/* Theme: Arctic Drift - Nordic clarity, winter calm */
-[data-theme='arctic_drift'] {
-  --bg: #f9fcff;
-  --card: #ffffff;
-  --text: #1e293b;
-  --accent: #0ea5e9;
-  --accent-subtle: #7dd3fc30;
-  --ring: #0ea5e9;
-  --success: #10b981;
-  --warning: #f59e0b;
-}
-
-/* Theme: Amber Dusk - Warm twilight and deep contrast */
-[data-theme='amber_dusk'] {
-  --bg: #1a1410;
-  --card: #231a16;
-  --text: #fef3c7;
-  --accent: #fb923c;
-  --accent-subtle: #fb923c25;
-  --ring: #fb923c;
-  --success: #10b981;
-  --warning: #f59e0b;
-}
-
-/* Theme: Coral Velvet - Modern, soft, optimistic */
-[data-theme='coral_velvet'] {
-  --bg: #fff8f6;
-  --card: #ffffff;
-  --text: #2f1b1b;
-  --accent: #fb7185;
-  --accent-subtle: #fecdd340;
-  --ring: #fb7185;
-  --success: #10b981;
-  --warning: #f59e0b;
-}
-
-/* Theme: Noir Mint - Sleek dark mode with mint glow */
-[data-theme='noir_mint'] {
-  --bg: #101315;
-  --card: #161a1d;
-  --text: #d9e1e8;
-  --accent: #2dd4bf;
-  --accent-subtle: #5eead440;
-  --ring: #2dd4bf;
-  --success: #10b981;
-  --warning: #f59e0b;
+  --text: #742a2a;
+  --accent: #fc8181;
+  --accent-subtle: #fc818140;
+  --ring: #fc8181;
+  --success: #68d391;
+  --warning: #f6ad55;
 }
 
 body {
@@ -164,6 +116,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -171,9 +124,12 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -237,4 +193,3 @@ body {
   opacity: 0.05;
   pointer-events: none;
 }
-

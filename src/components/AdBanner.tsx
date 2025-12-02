@@ -23,6 +23,8 @@ export default function AdBanner({ adSlot = '9874187873', style }: AdBannerProps
 	const pushedRef = useRef(false);
 
 	useEffect(() => {
+		if (process.env.NODE_ENV !== 'production') return;
+
 		const pushAd = () => {
 			if (pushedRef.current) return;
 
@@ -116,6 +118,17 @@ export default function AdBanner({ adSlot = '9874187873', style }: AdBannerProps
 			}
 		}
 	}, []);
+
+	if (process.env.NODE_ENV !== 'production') {
+		return (
+			<div
+				className="flex w-full items-center justify-center min-h-0 my-4 bg-gray-100 border border-dashed border-gray-300 text-gray-400 text-sm rounded-md"
+				style={style || { width: 728, height: 90 }}
+			>
+				Ad Banner (Production Only)
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex w-full items-center justify-center min-h-0">

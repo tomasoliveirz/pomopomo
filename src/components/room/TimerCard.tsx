@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Logo from '../Logo';
 import type { Segment, RoomStatus } from '@/types';
 import type { Socket } from 'socket.io-client';
 import { useAlarm } from '@/hooks/useAlarm';
@@ -32,7 +33,7 @@ export default function TimerCard({ currentSegment, segments, timerState, isHost
       const interval = setInterval(() => {
         const now = Date.now();
         const remaining = Math.max(0, Math.floor((timerState.segmentEndsAt! - now) / 1000));
-        
+
         // Only update if time actually changed (avoid unnecessary re-renders)
         if (remaining !== previousTimeRef.current) {
           setTimeRemaining(remaining);
@@ -98,10 +99,15 @@ export default function TimerCard({ currentSegment, segments, timerState, isHost
   if (!currentSegment) {
     return (
       <div className="card max-w-2xl w-full text-center">
-        <div className="text-4xl mb-4">🍅</div>
-        <p className="text-lg opacity-60">No segments in queue</p>
+        {/* colocar isto animado muito lento mas um pulse mesmo leve  */}
+        <div className="mb-2 animate-pulse-slow">
+          {/* centralizar o logo no meio */}
+          <img src="/branding/logo.svg" className="w-16 h-16 mx-auto" />
+        </div>
+        {/* colocar este texto bem mais pequeno */}
+        <p className="text-sm opacity-60">No segments in queue</p>
         {isHost && (
-          <p className="text-sm mt-2 opacity-60">Use the Queue Builder to add segments</p>
+          <p className="text-xs mt-2 opacity-60">Use the Queue Builder to add segments</p>
         )}
       </div>
     );
@@ -119,11 +125,10 @@ export default function TimerCard({ currentSegment, segments, timerState, isHost
         </div>
 
         <div className="flex items-center justify-center gap-4 text-sm opacity-60">
-          <span className={`inline-block w-2 h-2 rounded-full ${
-            timerState?.status === 'running' ? 'bg-success animate-pulse-slow' :
+          <span className={`inline-block w-2 h-2 rounded-full ${timerState?.status === 'running' ? 'bg-success animate-pulse-slow' :
             timerState?.status === 'paused' ? 'bg-warning' :
-            'bg-text/20'
-          }`} />
+              'bg-text/20'
+            }`} />
           <span className="capitalize">{timerState?.status || 'idle'}</span>
         </div>
 

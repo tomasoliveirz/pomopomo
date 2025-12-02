@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Room validators
 export const createRoomSchema = z.object({
-  theme: z.enum(['midnight_bloom', 'lilac_mist', 'solar_cream', 'verdant_dew', 'sakura_ink', 'arctic_drift', 'amber_dusk', 'coral_velvet', 'noir_mint']).optional(),
+  theme: z.enum(['lofi_girl', 'matcha_latte', 'sky_blue', 'night_mode', 'strawberry']).optional(),
 });
 
 export const joinRoomSchema = z.object({

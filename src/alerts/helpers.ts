@@ -1,4 +1,6 @@
 // alerts/helpers.ts
+import { loadPrefs } from './prefs';
+
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   if (!('Notification' in window)) return false;
@@ -10,7 +12,7 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 export function showEndNotification(opts?: { title?: string; body?: string }) {
   if (typeof window === 'undefined') return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  new Notification(opts?.title ?? '🍅 Pomopomo - Time\'s up!', {
+  new Notification(opts?.title ?? 'POMOPOMO - Time\'s up!', {
     body: opts?.body ?? 'Focus block finished. Ready for the next segment?',
     tag: 'pomopomo-timer',
     silent: false,
@@ -81,6 +83,16 @@ export async function playEndChime({ volume = 0.7, repeats = 1, intervalMs = 200
   for (let i = 0; i < Math.max(1, repeats); i++) {
     burst();
     if (i < repeats - 1) await new Promise((r) => setTimeout(r, intervalMs));
+  }
+
+  // Vibrate if enabled (and supported)
+  const prefs = loadPrefs();
+  if (prefs.vibrate && typeof navigator !== 'undefined' && navigator.vibrate) {
+    try {
+      navigator.vibrate([200, 100, 200]);
+    } catch (e) {
+      // Ignore vibration errors (some browsers restrict this)
+    }
   }
 }
 
