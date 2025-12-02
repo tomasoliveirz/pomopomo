@@ -11,7 +11,7 @@ export default function Logo({ size = 'medium' }: LogoProps) {
 
   return (
     <div className="flex items-center justify-center gap-2">
-      <span className="text-5xl">🍅</span>
+      <img src="/branding/logo.svg" alt="Tomato" className="w-12 h-12" />
       <h1 className={`font-display ${sizes[size]} tracking-tight`}>
         POMOPOMO
       </h1>

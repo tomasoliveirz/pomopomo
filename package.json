@@ -13,8 +13,10 @@
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "clean:rooms": "tsx scripts/clean-rooms.ts",
-    "stats:view": "tsx scripts/view-stats.ts"
+    "ops:clean-rooms": "tsx scripts/ops/clean-rooms.ts",
+    "ops:view-stats": "tsx scripts/ops/view-stats.ts",
+    "ops:online-users": "tsx scripts/ops/online-users.ts",
+    "ops:fix-room-host": "tsx scripts/ops/fix-room-host.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

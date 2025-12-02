@@ -1,9 +1,11 @@
 #!/usr/bin/env tsx
 import { PrismaClient } from '@prisma/client';
-import Redis from 'ioredis';
+import { createClient } from 'redis';
 
 const prisma = new PrismaClient();
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const redis = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
+redis.on('error', (err) => console.error('Redis Client Error', err));
+
 
 interface DailyStats {
   date: string;
@@ -36,7 +38,7 @@ async function collectStatistics() {
 
   for (const room of rooms) {
     const dateKey = room.createdAt.toISOString().split('T')[0];
-    
+
     if (!statsByDay.has(dateKey)) {
       statsByDay.set(dateKey, {
         date: dateKey,
@@ -50,7 +52,7 @@ async function collectStatistics() {
     const stats = statsByDay.get(dateKey)!;
     stats.roomsCreated += 1;
     stats.totalParticipants += room.participants.length;
-    
+
     // Contar sessões únicas (participantes únicos por sessionId)
     const uniqueSessions = new Set(room.participants.map(p => p.sessionId));
     stats.totalSessions += uniqueSessions.size;
@@ -68,7 +70,7 @@ async function collectStatistics() {
 
   // Salvar ou atualizar estatísticas no banco
   console.log(`💾 Salvando estatísticas de ${statsByDay.size} dias...`);
-  
+
   for (const [dateKey, stats] of statsByDay) {
     const existingStat = await prisma.dailyStatistic.findUnique({
       where: { date: new Date(dateKey) },
@@ -125,7 +127,7 @@ async function cleanRooms() {
   try {
     // Contar salas antes de deletar
     const roomCount = await prisma.room.count();
-    
+
     if (roomCount === 0) {
       console.log('✅ Nenhuma sala para limpar.');
       return;
@@ -133,7 +135,7 @@ async function cleanRooms() {
 
     // Deletar todas as salas (Cascade irá deletar todos os relacionamentos)
     await prisma.room.deleteMany({});
-    
+
     console.log(`✅ ${roomCount} salas deletadas com sucesso.`);
   } catch (error) {
     console.error('❌ Erro ao limpar salas:', error);
@@ -147,7 +149,7 @@ async function cleanRedis() {
   try {
     // Buscar todas as chaves relacionadas a salas
     const keys = await redis.keys('room:*');
-    
+
     if (keys.length === 0) {
       console.log('✅ Nenhuma chave de sala no Redis.');
       return;
@@ -155,7 +157,7 @@ async function cleanRedis() {
 
     // Deletar todas as chaves
     if (keys.length > 0) {
-      await redis.del(...keys);
+      await redis.del(keys);
       console.log(`✅ ${keys.length} chaves deletadas do Redis.`);
     }
   } catch (error) {
@@ -166,7 +168,7 @@ async function cleanRedis() {
 
 async function showStatistics() {
   console.log('\n📈 Estatísticas atuais no banco:');
-  
+
   const stats = await prisma.dailyStatistic.findMany({
     orderBy: { date: 'desc' },
     take: 10,
@@ -209,6 +211,8 @@ async function main() {
   try {
     console.log('🚀 Iniciando limpeza de salas...\n');
 
+    await redis.connect();
+
     // 1. Coletar estatísticas antes de limpar
     await collectStatistics();
 
@@ -233,6 +237,9 @@ async function main() {
 }
 
 main();
+
+
+
 
 
 

@@ -26,11 +26,11 @@ export default function SharePopup({ shareUrl, onClose }: SharePopupProps) {
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
       onClick={onClose}
     >
-      <div 
+      <div
         className="card max-w-md mx-4 space-y-4 animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
@@ -56,9 +56,9 @@ export default function SharePopup({ shareUrl, onClose }: SharePopupProps) {
             onClick={handleWhatsApp}
             className="flex flex-col items-center gap-2 p-4 rounded-lg border border-accent-subtle hover:bg-accent-subtle/10 transition-colors"
           >
-            <img 
-              src="/whatsapp-logo.png" 
-              alt="WhatsApp" 
+            <img
+              src="/icons/whatsapp-logo.png"
+              alt="WhatsApp"
               className="w-12 h-12 object-contain"
             />
             <span className="text-sm font-medium">WhatsApp</span>
@@ -67,11 +67,10 @@ export default function SharePopup({ shareUrl, onClose }: SharePopupProps) {
           {/* Copy Link */}
           <button
             onClick={handleCopyLink}
-            className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors ${
-              copied 
-                ? 'bg-green-500/20 border-green-500 text-green-600' 
+            className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors ${copied
+                ? 'bg-green-500/20 border-green-500 text-green-600'
                 : 'border-accent-subtle hover:bg-accent-subtle/10'
-            }`}
+              }`}
           >
             <div className="text-3xl">{copied ? '✓' : '🔗'}</div>
             <span className="text-sm font-medium">

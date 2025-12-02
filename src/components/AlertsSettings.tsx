@@ -27,11 +27,11 @@ export default function AlertsSettings({ onClose }: { onClose: () => void }) {
         new Notification('🍅 Pomopomo Alerts Enabled!', {
           body: 'You\'ll get notified when segments end.',
           silent: true,
-          icon: '/tomato.svg',
+          icon: '/branding/logo.svg',
         });
       }, 300);
     }
-    
+
     // Handle chime - auto-unlock audio
     if (k === 'chime' && !p.chime && !p.unlockedAudio) {
       const ok = await unlockAudioOnce();
@@ -42,7 +42,7 @@ export default function AlertsSettings({ onClose }: { onClose: () => void }) {
         return;
       }
     }
-    
+
     const next = { ...p, [k]: !p[k] as any };
     setP(next);
   };
@@ -156,9 +156,8 @@ function Row({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full flex items-center justify-between gap-4 px-3 py-2 rounded-xl transition-colors ${
-        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-accent-subtle/10'
-      }`}
+      className={`w-full flex items-center justify-between gap-4 px-3 py-2 rounded-xl transition-colors ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-accent-subtle/10'
+        }`}
     >
       <div className="text-left flex-1">
         <div className="font-medium">{label}</div>
@@ -186,9 +185,8 @@ function RowSelect({
 }) {
   return (
     <div
-      className={`w-full flex items-center justify-between gap-4 px-3 py-2 rounded-xl ${
-        disabled ? 'opacity-40' : ''
-      }`}
+      className={`w-full flex items-center justify-between gap-4 px-3 py-2 rounded-xl ${disabled ? 'opacity-40' : ''
+        }`}
     >
       <div className="text-left flex-1">
         <div className="font-medium">{label}</div>
@@ -213,14 +211,12 @@ function RowSelect({
 function Toggle({ on }: { on: boolean }) {
   return (
     <span
-      className={`inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-        on ? 'bg-accent' : 'bg-black/10 dark:bg-white/10'
-      }`}
+      className={`inline-flex h-7 w-12 items-center rounded-full transition-colors ${on ? 'bg-accent' : 'bg-black/10 dark:bg-white/10'
+        }`}
     >
       <span
-        className={`h-6 w-6 bg-white rounded-full shadow transform transition-transform ${
-          on ? 'translate-x-6' : 'translate-x-1'
-        }`}
+        className={`h-6 w-6 bg-white rounded-full shadow transform transition-transform ${on ? 'translate-x-6' : 'translate-x-1'
+          }`}
       />
     </span>
   );

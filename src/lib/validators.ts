@@ -50,12 +50,7 @@ export const sendChatSchema = z.object({
   text: z.string().min(1).max(500).trim(),
 });
 
-// Preferences validators
-export const updatePrefsSchema = z.object({
-  tickEnabled: z.boolean().optional(),
-  compactUI: z.boolean().optional(),
-  theme: z.enum(['midnight_bloom', 'lilac_mist', 'solar_cream', 'verdant_dew', 'sakura_ink', 'arctic_drift', 'amber_dusk', 'coral_velvet', 'noir_mint']).optional(),
-});
+
 
 // Play/skip validators
 export const playQueueSchema = z.object({
