@@ -140,6 +140,8 @@ io.on('connection', async (socket: Socket) => {
 
     const me = participants.find(p => p.id === participantId);
 
+    const messages = await messageRepo.findByRoomId(roomId, 50);
+
     if (me) {
       socket.emit('room:joined', {
         room: {
@@ -176,6 +178,15 @@ io.on('connection', async (socket: Socket) => {
           durationSec: s.durationSec,
           order: s.order,
           publicTask: s.publicTask || undefined
+        })),
+        messages: messages.map(m => ({
+          id: m.id,
+          participantId: m.props.participantId,
+          text: m.props.text,
+          reactions: m.props.reactions,
+          isShadowHidden: m.props.isShadowHidden,
+          createdAt: m.props.createdAt.toISOString(),
+          roomId: m.props.roomId
         })),
       });
     }

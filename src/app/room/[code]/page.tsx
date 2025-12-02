@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
+import { AnimatePresence } from 'framer-motion';
 import RoomHeader from '@/components/room/RoomHeader';
 import Logo from '@/components/Logo';
 import TimerCard from '@/components/room/TimerCard';
@@ -117,6 +118,7 @@ export default function RoomPage() {
       setMe(data.me);
       setParticipants(data.participants);
       setSegments(data.queue);
+      setMessages(data.messages);
       setLoading(false);
     });
 
@@ -386,21 +388,18 @@ export default function RoomPage() {
         </div>
 
         {/* Queue Panel - Floating Overlay (Now on Right) */}
-        {queueOpen && (
-          <div className="absolute top-4 bottom-24 right-4 w-96 max-w-[calc(100vw-2rem)] z-20 animate-slide-in-right">
-            <QueuePanel
-              segments={segments}
-              currentIndex={timerState?.currentIndex ?? 0}
-              segmentTasks={segmentTasks}
-              role={me.role}
-              socket={socket}
-              participantId={me.id}
-              roomId={room.id}
-              timerState={timerState}
-              onClose={() => setQueueOpen(false)}
-            />
-          </div>
-        )}
+        <QueuePanel
+          open={queueOpen}
+          segments={segments}
+          currentIndex={timerState?.currentIndex ?? 0}
+          segmentTasks={segmentTasks}
+          role={me.role}
+          socket={socket}
+          participantId={me.id}
+          roomId={room.id}
+          timerState={timerState}
+          onClose={() => setQueueOpen(false)}
+        />
 
         {/* Chat Drawer - Floating Overlay (Now on Left) */}
         <ChatDrawer
@@ -433,11 +432,13 @@ export default function RoomPage() {
       />
 
       {/* Unified Settings Modal */}
-      {showSettings && (
-        <RoomSettingsModal
-          onClose={() => setShowSettings(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showSettings && (
+          <RoomSettingsModal
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Toast Notifications Component */}
       {toastMessage && (

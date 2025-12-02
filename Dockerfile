@@ -1,15 +1,19 @@
 # Multi-stage build for production
 
+FROM node:20-bullseye-slim AS base
+
 # Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM base AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
 # Install ALL dependencies (including devDependencies) for building
-RUN npm ci --include=dev
+ARG CACHEBUST=1
+RUN apt-get update -y && apt-get install -y openssl
+RUN npm install --ignore-scripts
 
 # Stage 2: Builder
-FROM node:20-alpine AS builder
+FROM node:20-bullseye-slim AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -25,14 +29,18 @@ ENV SKIP_ENV_VALIDATION=1
 RUN npm run build
 
 # Stage 3: Runner
-FROM node:20-alpine AS runner
+FROM node:20-bullseye-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN apt-get update -y && apt-get install -y openssl
+
+RUN groupadd -g 1001 nodejs
+RUN useradd -u 1001 -g nodejs -s /bin/sh -m nextjs
+
+RUN npm install -g prisma@5.22.0
 
 # Copy necessary files
 COPY --from=builder /app/public ./public
