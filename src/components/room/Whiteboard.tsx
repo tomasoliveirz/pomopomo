@@ -91,16 +91,45 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
         }
     }, [textInput]);
 
+    const commitText = () => {
+        if (!textInput) return;
+
+        if (textInput.content.trim()) {
+            const id = Date.now().toString();
+            const newStroke: Stroke = {
+                id,
+                userId,
+                type: 'text',
+                color,
+                points: [],
+                x: textInput.x,
+                y: textInput.y,
+                content: textInput.content,
+                fontSize: 24, // Default font size
+            };
+
+            setStrokes((prev) => [...prev, newStroke]);
+            socket?.emit('whiteboard:draw', { roomId, stroke: newStroke });
+        }
+
+        setTextInput(null);
+    };
+
     const handlePointerDown = (e: React.PointerEvent) => {
+        // If we have an active text input and click elsewhere, commit it first
+        if (textInput) {
+            // Check if clicking inside the input (handled by input itself usually, but safe to check)
+            if (e.target === textInputRef.current) return;
+
+            commitText();
+            return;
+        }
+
         if (tool === 'eraser' || tool === 'pointer') return;
 
         // Text Tool Logic
         if (tool === 'text') {
-            if (textInput) {
-                commitText(); // Commit existing text if clicking elsewhere
-            } else {
-                setTextInput({ x: e.clientX, y: e.clientY, content: '' });
-            }
+            setTextInput({ x: e.clientX, y: e.clientY, content: '' });
             return;
         }
 
@@ -161,30 +190,6 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
             socket?.emit('whiteboard:draw', { roomId, stroke: currentStroke });
             setCurrentStroke(null);
         }
-    };
-
-    const commitText = () => {
-        if (!textInput || !textInput.content.trim()) {
-            setTextInput(null);
-            return;
-        }
-
-        const id = Date.now().toString();
-        const newStroke: Stroke = {
-            id,
-            userId,
-            type: 'text',
-            color,
-            points: [],
-            x: textInput.x,
-            y: textInput.y,
-            content: textInput.content,
-            fontSize: 24, // Default font size
-        };
-
-        setStrokes((prev) => [...prev, newStroke]);
-        socket?.emit('whiteboard:draw', { roomId, stroke: newStroke });
-        setTextInput(null);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -278,6 +283,7 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
                     fontSize={stroke.fontSize || 24}
                     fontFamily="system-ui, -apple-system, sans-serif"
                     fontWeight="600"
+                    dominantBaseline="hanging"
                     style={{ userSelect: 'none' }}
                 >
                     {stroke.content}
@@ -326,19 +332,20 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
             {/* Text Input Overlay */}
             {textInput && (
                 <div
-                    className="absolute"
+                    className="absolute z-50"
                     style={{ top: textInput.y, left: textInput.x }}
                 >
                     <input
                         ref={textInputRef}
                         type="text"
+                        autoFocus
                         value={textInput.content}
                         onChange={(e) => setTextInput({ ...textInput, content: e.target.value })}
                         onKeyDown={handleKeyDown}
                         onBlur={commitText}
                         className="bg-transparent border-b-2 border-blue-500 outline-none text-2xl font-semibold text-gray-800 min-w-[100px]"
                         style={{ color: color, fontFamily: 'system-ui' }}
-                        placeholder="Type here..."
+                        placeholder="Type..."
                     />
                 </div>
             )}
@@ -353,50 +360,50 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
                 </div>
             )}
 
-            {/* Toolbar - Kawaii Clean */}
-            <div className="fixed top-8 left-1/2 -translate-x-1/2 flex items-center p-2 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-white/60 z-50 gap-2">
+            {/* Toolbar - Clean & Pro */}
+            <div className="fixed top-8 left-1/2 -translate-x-1/2 flex items-center py-3 px-4 bg-white/95 backdrop-blur-2xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-white/60 z-50 gap-1">
 
                 {/* Tools */}
                 <div className="flex gap-1">
-                    <ToolButton active={tool === 'pointer'} onClick={() => setTool('pointer')} icon={<MousePointer2 size={20} />} label="Select" />
-                    <ToolButton active={tool === 'pen'} onClick={() => setTool('pen')} icon={<Pen size={20} />} label="Pen" />
-                    <ToolButton active={tool === 'text'} onClick={() => setTool('text')} icon={<Type size={20} />} label="Text" />
-                    <ToolButton active={tool === 'eraser'} onClick={() => setTool('eraser')} icon={<Eraser size={20} />} label="Eraser" />
+                    <ToolButton active={tool === 'pointer'} onClick={() => setTool('pointer')} icon={<MousePointer2 size={20} strokeWidth={2} />} label="Select" />
+                    <ToolButton active={tool === 'pen'} onClick={() => setTool('pen')} icon={<Pen size={20} strokeWidth={2} />} label="Pen" />
+                    <ToolButton active={tool === 'text'} onClick={() => setTool('text')} icon={<Type size={20} strokeWidth={2} />} label="Text" />
+                    <ToolButton active={tool === 'eraser'} onClick={() => setTool('eraser')} icon={<Eraser size={20} strokeWidth={2} />} label="Eraser" />
                 </div>
 
-                <div className="w-px h-8 bg-gray-200" />
+                <div className="border-l border-gray-200 h-6 mx-2" />
 
                 {/* Shapes */}
                 <div className="flex gap-1">
-                    <ToolButton active={tool === 'rect'} onClick={() => setTool('rect')} icon={<Square size={20} />} label="Rect" />
-                    <ToolButton active={tool === 'circle'} onClick={() => setTool('circle')} icon={<Circle size={20} />} label="Circle" />
+                    <ToolButton active={tool === 'rect'} onClick={() => setTool('rect')} icon={<Square size={20} strokeWidth={2} />} label="Rect" />
+                    <ToolButton active={tool === 'circle'} onClick={() => setTool('circle')} icon={<Circle size={20} strokeWidth={2} />} label="Circle" />
                 </div>
 
-                <div className="w-px h-8 bg-gray-200" />
+                <div className="border-l border-gray-200 h-6 mx-2" />
 
                 {/* Sizes */}
-                <div className="flex gap-2 px-2 items-center">
+                <div className="flex gap-3 px-2 items-center">
                     {SIZES.map((s) => (
                         <button
                             key={s}
                             onClick={() => setStrokeWidth(s)}
-                            className={`rounded-full bg-gray-800 transition-all ${strokeWidth === s ? 'opacity-100 scale-110 ring-2 ring-offset-2 ring-gray-300' : 'opacity-30 hover:opacity-60'
+                            className={`rounded-full bg-gray-800 transition-all ${strokeWidth === s ? 'opacity-100 scale-125 ring-2 ring-offset-2 ring-gray-300' : 'opacity-30 hover:opacity-60'
                                 }`}
-                            style={{ width: s + 4, height: s + 4 }}
+                            style={{ width: Math.max(s, 6), height: Math.max(s, 6) }}
                             title={`Size ${s}px`}
                         />
                     ))}
                 </div>
 
-                <div className="w-px h-8 bg-gray-200" />
+                <div className="border-l border-gray-200 h-6 mx-2" />
 
                 {/* Colors */}
-                <div className="flex gap-1.5 px-1">
+                <div className="flex gap-2 px-1">
                     {COLORS.map((c) => (
                         <button
                             key={c}
                             onClick={() => setColor(c)}
-                            className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${color === c ? 'border-gray-400 scale-110' : 'border-transparent'
+                            className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${color === c ? 'border-gray-400 scale-110 ring-2 ring-offset-2 ring-gray-200' : 'border-transparent'
                                 }`}
                             style={{ backgroundColor: c }}
                             title={c}
@@ -404,7 +411,7 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
                     ))}
                 </div>
 
-                <div className="w-px h-8 bg-gray-200" />
+                <div className="border-l border-gray-200 h-6 mx-2" />
 
                 {/* Actions */}
                 <div className="flex gap-1">
@@ -413,14 +420,14 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
                         className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                         title="Clear All"
                     >
-                        <Trash2 size={20} />
+                        <Trash2 size={20} strokeWidth={2} />
                     </button>
                     <button
                         onClick={onClose}
                         className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
                         title="Close"
                     >
-                        <X size={20} />
+                        <X size={20} strokeWidth={2} />
                     </button>
                 </div>
             </div>
@@ -432,7 +439,9 @@ function ToolButton({ active, onClick, icon, label }: { active: boolean; onClick
     return (
         <button
             onClick={onClick}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 group relative ${active ? 'bg-gray-100 text-gray-900 shadow-sm' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
+            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 ${active
+                    ? 'bg-blue-50 text-blue-600 shadow-sm scale-105'
+                    : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
                 }`}
             title={label}
         >
