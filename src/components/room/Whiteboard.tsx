@@ -6,6 +6,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import throttle from 'lodash.throttle';
 import type { Socket } from 'socket.io-client';
 import type { Stroke, ShapeType, Participant } from '@/types';
+import {
+    MousePointer2,
+    Pen,
+    Square,
+    Circle,
+    Type,
+    Eraser,
+    Trash2,
+    X
+} from 'lucide-react';
 
 interface WhiteboardProps {
     roomId: string;
@@ -23,13 +33,20 @@ const COLORS = [
     '#4b5563', // gray-600 (soft black)
 ];
 
+const SIZES = [4, 8, 16];
+
 export default function Whiteboard({ roomId, socket, userId, participants, onClose }: WhiteboardProps) {
     const [strokes, setStrokes] = useState<Stroke[]>([]);
     const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
     const [tool, setTool] = useState<ShapeType | 'eraser' | 'pointer'>('pen');
     const [color, setColor] = useState(COLORS[0]);
+    const [strokeWidth, setStrokeWidth] = useState(8);
     const [hoveredStroke, setHoveredStroke] = useState<Stroke | null>(null);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+    // Text Tool State
+    const [textInput, setTextInput] = useState<{ x: number; y: number; content: string } | null>(null);
+    const textInputRef = useRef<HTMLInputElement>(null);
 
     // Throttled socket emitter
     const emitDraw = useCallback(
@@ -67,8 +84,25 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
         };
     }, [socket, roomId]);
 
+    // Focus text input when it appears
+    useEffect(() => {
+        if (textInput && textInputRef.current) {
+            textInputRef.current.focus();
+        }
+    }, [textInput]);
+
     const handlePointerDown = (e: React.PointerEvent) => {
         if (tool === 'eraser' || tool === 'pointer') return;
+
+        // Text Tool Logic
+        if (tool === 'text') {
+            if (textInput) {
+                commitText(); // Commit existing text if clicking elsewhere
+            } else {
+                setTextInput({ x: e.clientX, y: e.clientY, content: '' });
+            }
+            return;
+        }
 
         e.currentTarget.setPointerCapture(e.pointerId);
         const point = [e.clientX, e.clientY, e.pressure];
@@ -77,8 +111,9 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
         const newStroke: Stroke = {
             id,
             userId,
-            type: tool === 'pen' ? 'pen' : (tool as ShapeType),
+            type: tool as ShapeType,
             color,
+            strokeWidth,
             points: [point],
             x: point[0],
             y: point[1],
@@ -92,7 +127,7 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
     const handlePointerMove = (e: React.PointerEvent) => {
         setMousePos({ x: e.clientX, y: e.clientY });
 
-        if (tool === 'eraser' || tool === 'pointer') return;
+        if (tool === 'eraser' || tool === 'pointer' || tool === 'text') return;
         if (!currentStroke) return;
 
         const point = [e.clientX, e.clientY, e.pressure];
@@ -128,9 +163,47 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
         }
     };
 
+    const commitText = () => {
+        if (!textInput || !textInput.content.trim()) {
+            setTextInput(null);
+            return;
+        }
+
+        const id = Date.now().toString();
+        const newStroke: Stroke = {
+            id,
+            userId,
+            type: 'text',
+            color,
+            points: [],
+            x: textInput.x,
+            y: textInput.y,
+            content: textInput.content,
+            fontSize: 24, // Default font size
+        };
+
+        setStrokes((prev) => [...prev, newStroke]);
+        socket?.emit('whiteboard:draw', { roomId, stroke: newStroke });
+        setTextInput(null);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            commitText();
+        }
+    };
+
     const deleteStroke = (strokeId: string) => {
         setStrokes((prev) => prev.filter((s) => s.id !== strokeId));
         socket?.emit('whiteboard:erase', { roomId, strokeId });
+    };
+
+    const handleClearAll = () => {
+        if (confirm('Clear entire whiteboard?')) {
+            setStrokes([]);
+            socket?.emit('whiteboard:clear', roomId);
+        }
     };
 
     const handleStrokePointerDown = (e: React.PointerEvent, strokeId: string) => {
@@ -160,9 +233,11 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
 
     // Render helpers
     const renderStroke = (stroke: Stroke) => {
+        const sw = stroke.strokeWidth || 8;
+
         if (stroke.type === 'pen') {
             const outlinePoints = getStroke(stroke.points, {
-                size: 8,
+                size: sw,
                 thinning: 0.5,
                 smoothing: 0.5,
                 streamline: 0.5,
@@ -179,7 +254,7 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
                     rx={10}
                     fill="none"
                     stroke={stroke.color}
-                    strokeWidth={4}
+                    strokeWidth={sw}
                 />
             );
         } else if (stroke.type === 'circle') {
@@ -191,8 +266,22 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
                     r={stroke.radius}
                     fill="none"
                     stroke={stroke.color}
-                    strokeWidth={4}
+                    strokeWidth={sw}
                 />
+            );
+        } else if (stroke.type === 'text') {
+            return (
+                <text
+                    x={stroke.x}
+                    y={stroke.y}
+                    fill={stroke.color}
+                    fontSize={stroke.fontSize || 24}
+                    fontFamily="system-ui, -apple-system, sans-serif"
+                    fontWeight="600"
+                    style={{ userSelect: 'none' }}
+                >
+                    {stroke.content}
+                </text>
             );
         }
     };
@@ -206,7 +295,12 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
         >
             <svg
                 className="w-full h-full touch-none"
-                style={{ cursor: tool === 'pointer' ? 'default' : tool === 'eraser' ? 'cell' : 'crosshair' }}
+                style={{
+                    cursor: tool === 'pointer' ? 'default'
+                        : tool === 'eraser' ? 'cell'
+                            : tool === 'text' ? 'text'
+                                : 'crosshair'
+                }}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
@@ -229,6 +323,26 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
                 )}
             </svg>
 
+            {/* Text Input Overlay */}
+            {textInput && (
+                <div
+                    className="absolute"
+                    style={{ top: textInput.y, left: textInput.x }}
+                >
+                    <input
+                        ref={textInputRef}
+                        type="text"
+                        value={textInput.content}
+                        onChange={(e) => setTextInput({ ...textInput, content: e.target.value })}
+                        onKeyDown={handleKeyDown}
+                        onBlur={commitText}
+                        className="bg-transparent border-b-2 border-blue-500 outline-none text-2xl font-semibold text-gray-800 min-w-[100px]"
+                        style={{ color: color, fontFamily: 'system-ui' }}
+                        placeholder="Type here..."
+                    />
+                </div>
+            )}
+
             {/* Tooltip */}
             {tool === 'pointer' && hoveredStroke && (
                 <div
@@ -239,47 +353,88 @@ export default function Whiteboard({ roomId, socket, userId, participants, onClo
                 </div>
             )}
 
-            {/* Toolbar - Moved to Top */}
-            <div className="fixed top-8 left-1/2 -translate-x-1/2 flex items-center gap-4 p-4 bg-white/90 backdrop-blur-2xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/40 z-50">
-                <div className="flex gap-2 pr-4 border-r border-gray-200">
-                    <ToolButton active={tool === 'pointer'} onClick={() => setTool('pointer')} icon="↖️" />
-                    <ToolButton active={tool === 'pen'} onClick={() => setTool('pen')} icon="🖊️" />
-                    <ToolButton active={tool === 'rect'} onClick={() => setTool('rect')} icon="⬜" />
-                    <ToolButton active={tool === 'circle'} onClick={() => setTool('circle')} icon="⭕" />
-                    <ToolButton active={tool === 'eraser'} onClick={() => setTool('eraser')} icon="🧹" />
+            {/* Toolbar - Kawaii Clean */}
+            <div className="fixed top-8 left-1/2 -translate-x-1/2 flex items-center p-2 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-white/60 z-50 gap-2">
+
+                {/* Tools */}
+                <div className="flex gap-1">
+                    <ToolButton active={tool === 'pointer'} onClick={() => setTool('pointer')} icon={<MousePointer2 size={20} />} label="Select" />
+                    <ToolButton active={tool === 'pen'} onClick={() => setTool('pen')} icon={<Pen size={20} />} label="Pen" />
+                    <ToolButton active={tool === 'text'} onClick={() => setTool('text')} icon={<Type size={20} />} label="Text" />
+                    <ToolButton active={tool === 'eraser'} onClick={() => setTool('eraser')} icon={<Eraser size={20} />} label="Eraser" />
                 </div>
 
-                <div className="flex gap-2">
-                    {COLORS.map((c) => (
+                <div className="w-px h-8 bg-gray-200" />
+
+                {/* Shapes */}
+                <div className="flex gap-1">
+                    <ToolButton active={tool === 'rect'} onClick={() => setTool('rect')} icon={<Square size={20} />} label="Rect" />
+                    <ToolButton active={tool === 'circle'} onClick={() => setTool('circle')} icon={<Circle size={20} />} label="Circle" />
+                </div>
+
+                <div className="w-px h-8 bg-gray-200" />
+
+                {/* Sizes */}
+                <div className="flex gap-2 px-2 items-center">
+                    {SIZES.map((s) => (
                         <button
-                            key={c}
-                            onClick={() => setColor(c)}
-                            className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c ? 'border-gray-400 scale-110' : 'border-transparent'
+                            key={s}
+                            onClick={() => setStrokeWidth(s)}
+                            className={`rounded-full bg-gray-800 transition-all ${strokeWidth === s ? 'opacity-100 scale-110 ring-2 ring-offset-2 ring-gray-300' : 'opacity-30 hover:opacity-60'
                                 }`}
-                            style={{ backgroundColor: c }}
+                            style={{ width: s + 4, height: s + 4 }}
+                            title={`Size ${s}px`}
                         />
                     ))}
                 </div>
 
-                <div className="w-px h-8 bg-gray-200 mx-2" />
+                <div className="w-px h-8 bg-gray-200" />
 
-                <button
-                    onClick={onClose}
-                    className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-500 transition-colors"
-                >
-                    ✕
-                </button>
+                {/* Colors */}
+                <div className="flex gap-1.5 px-1">
+                    {COLORS.map((c) => (
+                        <button
+                            key={c}
+                            onClick={() => setColor(c)}
+                            className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${color === c ? 'border-gray-400 scale-110' : 'border-transparent'
+                                }`}
+                            style={{ backgroundColor: c }}
+                            title={c}
+                        />
+                    ))}
+                </div>
+
+                <div className="w-px h-8 bg-gray-200" />
+
+                {/* Actions */}
+                <div className="flex gap-1">
+                    <button
+                        onClick={handleClearAll}
+                        className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                        title="Clear All"
+                    >
+                        <Trash2 size={20} />
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+                        title="Close"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
             </div>
         </motion.div>
     );
 }
 
-function ToolButton({ active, onClick, icon }: { active: boolean; onClick: () => void; icon: string }) {
+function ToolButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
     return (
         <button
             onClick={onClick}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl text-xl transition-all ${active ? 'bg-gray-100 shadow-inner scale-95' : 'hover:bg-gray-50 hover:scale-105'
+            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 group relative ${active ? 'bg-gray-100 text-gray-900 shadow-sm' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
                 }`}
+            title={label}
         >
             {icon}
         </button>

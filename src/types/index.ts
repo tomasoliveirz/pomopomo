@@ -72,7 +72,7 @@ export interface Message {
   createdAt: string;
 }
 
-export type ShapeType = 'pen' | 'rect' | 'circle';
+export type ShapeType = 'pen' | 'rect' | 'circle' | 'text';
 
 export interface Stroke {
   id: string;
@@ -85,6 +85,9 @@ export interface Stroke {
   width?: number;
   height?: number;
   radius?: number;
+  content?: string; // For text
+  strokeWidth?: number;
+  fontSize?: number;
 }
 
 // Socket.IO event types
