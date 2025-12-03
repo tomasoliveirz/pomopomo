@@ -32,6 +32,7 @@ import { handleQueueEvents } from './handlers/queue';
 import { handleTaskEvents } from './handlers/task';
 import { handleProposalEvents } from './handlers/proposal';
 import { handleChatEvents } from './handlers/chat';
+import { handleWhiteboardEvents } from './handlers/whiteboard';
 
 const httpServer = createServer();
 
@@ -228,6 +229,8 @@ io.on('connection', async (socket: Socket) => {
       rateLimiter
     });
 
+    handleWhiteboardEvents(io, socket, data);
+
   } catch (e) {
     console.error(e);
     socket.disconnect();
@@ -243,7 +246,7 @@ io.on('connection', async (socket: Socket) => {
 });
 
 const PORT = config.WS_PORT;
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 WebSocket server running on port ${PORT}`);
 });
 

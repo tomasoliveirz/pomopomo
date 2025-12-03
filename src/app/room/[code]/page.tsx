@@ -15,6 +15,7 @@ import AlertsSettings from '@/components/AlertsSettings';
 import Toast from '@/components/Toast';
 import ControlDock from '@/components/room/ControlDock';
 import RoomSettingsModal from '@/components/room/RoomSettingsModal';
+import Whiteboard from '@/components/room/Whiteboard';
 import { handleSegmentEnd } from '@/alerts/engine';
 import type { Room, Participant, Segment, Message, RoomStatus } from '@/types';
 
@@ -39,6 +40,7 @@ export default function RoomPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [chatOpen, setChatOpen] = useState(false);
+  const [whiteboardOpen, setWhiteboardOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'timer' | 'sounds'>('timer');
@@ -422,14 +424,29 @@ export default function RoomPage() {
       <ControlDock
         onToggleQueue={() => setQueueOpen(!queueOpen)}
         onToggleChat={() => setChatOpen(!chatOpen)}
+        onToggleWhiteboard={() => setWhiteboardOpen(!whiteboardOpen)}
         onOpenSettings={() => {
           setSettingsTab('timer');
           setShowSettings(true);
         }}
         queueOpen={queueOpen}
         chatOpen={chatOpen}
+        whiteboardOpen={whiteboardOpen}
         unreadMessages={unreadMessages}
       />
+
+      {/* Whiteboard */}
+      <AnimatePresence>
+        {whiteboardOpen && (
+          <Whiteboard
+            roomId={room?.id || ''}
+            socket={socket}
+            userId={me?.id || ''}
+            participants={participants}
+            onClose={() => setWhiteboardOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Unified Settings Modal */}
       <AnimatePresence>

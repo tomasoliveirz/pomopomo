@@ -5,18 +5,22 @@ import { useState } from 'react';
 interface ControlDockProps {
     onToggleQueue: () => void;
     onToggleChat: () => void;
+    onToggleWhiteboard: () => void;
     onOpenSettings: () => void;
     queueOpen: boolean;
     chatOpen: boolean;
+    whiteboardOpen: boolean;
     unreadMessages?: number;
 }
 
 export default function ControlDock({
     onToggleQueue,
     onToggleChat,
+    onToggleWhiteboard,
     onOpenSettings,
     queueOpen,
     chatOpen,
+    whiteboardOpen,
     unreadMessages = 0,
 }: ControlDockProps) {
     return (
@@ -38,6 +42,14 @@ export default function ControlDock({
                     active={chatOpen}
                     onClick={onToggleChat}
                     badge={unreadMessages}
+                />
+
+                {/* Whiteboard Toggle */}
+                <DockItem
+                    label="Draw"
+                    icon="🎨"
+                    active={whiteboardOpen}
+                    onClick={onToggleWhiteboard}
                 />
 
                 {/* Separator */}

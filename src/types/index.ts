@@ -72,6 +72,21 @@ export interface Message {
   createdAt: string;
 }
 
+export type ShapeType = 'pen' | 'rect' | 'circle';
+
+export interface Stroke {
+  id: string;
+  userId: string;
+  type: ShapeType;
+  color: string;
+  points: number[][]; // [x, y, pressure]
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  radius?: number;
+}
+
 // Socket.IO event types
 export interface ClientEvents {
   'room:create': (data: { theme?: Theme }, callback: (response: any) => void) => void;
@@ -90,6 +105,10 @@ export interface ClientEvents {
   'proposal:moderate': (data: { id: string; decision: 'accepted' | 'rejected' }, callback?: (ok: boolean) => void) => void;
   'chat:send': (data: { text: string }) => void;
   'prefs:update': (data: { tickEnabled?: boolean; compactUI?: boolean; theme?: Theme }) => void;
+  'whiteboard:draw': (data: { roomId: string; stroke: Stroke }) => void;
+  'whiteboard:erase': (data: { roomId: string; strokeId: string }) => void;
+  'whiteboard:clear': (roomId: string) => void;
+  'whiteboard:request-state': (roomId: string) => void;
   'pong': () => void;
 }
 
@@ -109,6 +128,10 @@ export interface ServerEvents {
   'task:public:updated': (data: { segmentId: string; text: string }) => void;
   'proposal:updated': (data: Proposal) => void;
   'chat:message': (data: Message) => void;
+  'whiteboard:state': (strokes: Stroke[]) => void;
+  'whiteboard:new-stroke': (stroke: Stroke) => void;
+  'whiteboard:erase': (strokeId: string) => void;
+  'whiteboard:clear': () => void;
   'toast': (data: { level: 'info' | 'error' | 'success'; message: string }) => void;
   'error': (data: { message: string; code?: string }) => void;
   'ping': (data: { timestamp: number }) => void;
