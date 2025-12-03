@@ -73,6 +73,13 @@ export class LeaveRoomUseCase {
                     });
                     await this.participantRepo.save(updatedLeaver);
 
+                    // CRITICAL FIX: Update Room's hostSessionId
+                    const room = await this.roomRepo.findById(roomId);
+                    if (room) {
+                        room.transferHost(updatedNewHost.sessionId);
+                        await this.roomRepo.save(room);
+                    }
+
                     // Broadcast new host
                     // We need to broadcast the updated participant list again?
                     // Or a specific event?

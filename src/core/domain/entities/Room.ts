@@ -38,4 +38,8 @@ export class Room {
     public getCurrentSegment(): Segment | undefined {
         return this.props.segments?.find(s => s.order === this.props.currentSegmentIndex);
     }
+
+    public transferHost(newHostSessionId: SessionId): void {
+        this.props.hostSessionId = newHostSessionId;
+    }
 }
