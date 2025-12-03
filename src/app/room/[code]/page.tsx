@@ -227,12 +227,10 @@ export default function RoomPage() {
       setToastMessage(`🎉 ${data.newHostName} is now the host!`);
       setTimeout(() => setToastMessage(null), 4000);
 
-      // If I'm the new host, refresh to get full permissions
+      // If I'm the new host, update my role immediately without reload
       if (me && data.newHostId === me.id) {
-        setToastMessage('🎉 You are now the host! Refreshing...');
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+        setToastMessage('🎉 You are now the host! You have full control.');
+        setMe(prev => prev ? { ...prev, role: 'host' } : null);
       }
     });
 

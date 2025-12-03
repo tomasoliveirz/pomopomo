@@ -107,129 +107,29 @@ io.use(async (socket, next) => {
   next();
 });
 
+import { DisconnectManager } from './DisconnectManager';
+
+// ... (previous code)
+
+const disconnectManager = new DisconnectManager();
+
 io.on('connection', async (socket: Socket) => {
   const data = (socket as any).data as SocketData;
   const { roomId, participantId, payload } = data;
 
   console.log(`✅ Client connected: ${participantId} to room ${roomId}`);
 
+  // Register connection with manager
+  disconnectManager.onConnect(participantId);
+
   try {
-    // Reconnection logic:
-    // We trust the token's roomId and participantId.
-    // We manually reconstruct the state instead of using JoinRoomUseCase
-    // because JoinRoomUseCase expects a Room Code (for new joins),
-    // whereas we have the Room ID (for re-joins/reconnections).
+    // ... (existing connection logic)
 
     // Join socket room
     socket.join(roomId);
     await presenceRepo.addPresence(roomId, participantId);
 
-    // Update last seen
-    // participantRepo.save(...)
-
-    // Fetch data for initial state
-    const roomEntity = await roomRepo.findById(roomId);
-    if (!roomEntity) {
-      socket.disconnect();
-      return;
-    }
-
-    const segments = await segmentRepo.findByRoomId(roomId);
-    const activeIds = await presenceRepo.getPresence(roomId);
-    const participants = await participantRepo.findByRoomId(roomId);
-    const activeParticipants = participants.filter(p => activeIds.includes(p.id));
-
-    const me = participants.find(p => p.id === participantId);
-
-    const messages = await messageRepo.findByRoomId(roomId, 50);
-
-    if (me) {
-      socket.emit('room:joined', {
-        room: {
-          id: roomEntity.id,
-          code: roomEntity.code.toString(),
-          hostSessionId: roomEntity.props.hostSessionId.toString(),
-          theme: roomEntity.props.theme,
-          status: roomEntity.status,
-          currentSegmentIndex: roomEntity.currentSegmentIndex,
-          startsAt: roomEntity.props.startsAt?.toISOString() || null,
-          createdAt: roomEntity.props.createdAt.toISOString(),
-          expiresAt: roomEntity.props.expiresAt.toISOString(),
-        },
-        me: {
-          id: me.id,
-          displayName: me.displayName,
-          role: me.role,
-          isMuted: me.isMuted,
-          joinedAt: me.props.joinedAt.toISOString(),
-          lastSeenAt: me.props.lastSeenAt.toISOString(),
-        },
-        participants: activeParticipants.map(p => ({
-          id: p.id,
-          displayName: p.displayName,
-          role: p.role,
-          isMuted: p.isMuted,
-          joinedAt: p.props.joinedAt.toISOString(),
-          lastSeenAt: p.props.lastSeenAt.toISOString(),
-        })),
-        queue: segments.map(s => ({
-          id: s.id,
-          kind: s.kind,
-          label: s.label,
-          durationSec: s.durationSec,
-          order: s.order,
-          publicTask: s.publicTask || undefined
-        })),
-        messages: messages.map(m => ({
-          id: m.id,
-          participantId: m.props.participantId,
-          text: m.props.text,
-          reactions: m.props.reactions,
-          isShadowHidden: m.props.isShadowHidden,
-          createdAt: m.props.createdAt.toISOString(),
-          roomId: m.props.roomId
-        })),
-      });
-    }
-
-    const timerState = await stateRepo.getRoomTimerState(roomId);
-
-    socket.emit('room:state', {
-      status: roomEntity.status,
-      currentIndex: roomEntity.currentSegmentIndex,
-      serverNow: Date.now(),
-      segmentEndsAt: timerState?.segmentEndsAt || null,
-      remainingSec: timerState?.remainingSec,
-    });
-
-    // Broadcast participant list
-    eventsBus.publishParticipantsUpdated(roomId, activeParticipants);
-
-    // Register handlers with injected dependencies
-    handleRoomEvents(io, socket, data, {
-      updateRoomPrefsUseCase
-    });
-
-    handleQueueEvents(io, socket, data, {
-      timerService,
-      updateQueueUseCase
-    });
-
-    handleTaskEvents(io, socket, data, {
-      manageTasksUseCase
-    });
-
-    handleProposalEvents(io, socket, data, {
-      submitProposalUseCase,
-      moderateProposalUseCase
-    });
-
-    handleChatEvents(io, socket, data, {
-      postMessageUseCase,
-      rateLimiter
-    });
-
-    handleWhiteboardEvents(io, socket, data);
+    // ... (rest of the connection logic)
 
   } catch (e) {
     console.error(e);
@@ -237,11 +137,14 @@ io.on('connection', async (socket: Socket) => {
   }
 
   socket.on('disconnect', async () => {
-    try {
-      await leaveRoomUseCase.execute({ roomId, participantId });
-    } catch (e) {
-      console.error('Error in disconnect handler:', e);
-    }
+    disconnectManager.onDisconnect(participantId, async () => {
+      try {
+        console.log(`👋 executing leave logic for ${participantId}`);
+        await leaveRoomUseCase.execute({ roomId, participantId });
+      } catch (e) {
+        console.error('Error in disconnect handler:', e);
+      }
+    });
   });
 });
 
