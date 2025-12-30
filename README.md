@@ -14,17 +14,17 @@ A real-time collaborative Pomodoro timer designed for teams to sync their focus 
 
 ## Screenshots
 
-| Landing Page | Room View |
+| Landing Page | Join Session |
 |:---:|:---:|
-| ![Landing Page](docs/assets/01-landing.png) | ![Room View](docs/assets/03-room-view.png) |
+| ![Landing Page](docs/assets/01-landing.png) | ![Join Session](docs/assets/02-join-session.png) |
 
-| Create Room | Features |
+| Create Room | Room View |
 |:---:|:---:|
-| ![Create Room](docs/assets/02-create-room.png) | ![Features](docs/assets/06-features.png) |
+| ![Create Room](docs/assets/03-create-room.png) | ![Room View](docs/assets/04-room-view.png) |
 
-| Settings | Mobile View |
+| Settings | Drawing Board |
 |:---:|:---:|
-| ![Settings](docs/assets/04-settings.png) | ![Mobile View](docs/assets/05-mobile-view.png) |
+| ![Settings](docs/assets/05-settings.png) | ![Drawing Board](docs/assets/06-drawing-board.png) |
 
 ## Repository Structure
 
