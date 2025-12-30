@@ -12,6 +12,14 @@ A real-time collaborative Pomodoro timer designed for teams to sync their focus 
 - **Smart Alerts**: Audio and visual notifications for segment changes and breaks.
 - **Clean Architecture**: Built with a separation of concerns (Core, Infrastructure, Application) for maintainability.
 
+## Screenshots
+
+![Landing Page](docs/assets/landing.png)
+*Landing Page*
+
+![Room Interface](docs/assets/room.png)
+*Collaborative Room Interface*
+
 ## Repository Structure
 
 ```
