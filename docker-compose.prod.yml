@@ -14,7 +14,7 @@ services:
       - pomopomo-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pomopomo"]
+      test: [ "CMD-SHELL", "pg_isready -U pomopomo" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +28,7 @@ services:
       - pomopomo-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,7 +37,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      network: host
       args:
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
@@ -65,15 +64,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ws
-      network: host
     container_name: pomopomo-ws
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://pomopomo-redis:6379
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET}
       - SESSION_SECRET=${SESSION_SECRET}
-      - WS_PORT=3001
+      - WS_PORT=3003
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,7 +81,7 @@ services:
       - pomopomo-network
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "3003:3003"
 
 networks:
   pomopomo-network:
@@ -92,25 +90,5 @@ networks:
 volumes:
   postgres_data:
   redis_data:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
