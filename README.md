@@ -2,8 +2,6 @@
 
 A real-time collaborative Pomodoro timer designed for teams to sync their focus sessions, manage shared tasks, and stay in flow together.
 
-> **Note**: The application UI and some operational text are in Portuguese.
-
 ## Features
 
 - **Real-time Synchronization**: Room state, timer, and tasks sync instantly across all clients using WebSockets.
