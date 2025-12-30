@@ -123,16 +123,75 @@ io.on('connection', async (socket: Socket) => {
   disconnectManager.onConnect(participantId);
 
   try {
-    // ... (existing connection logic)
-
     // Join socket room
     socket.join(roomId);
     await presenceRepo.addPresence(roomId, participantId);
 
-    // ... (rest of the connection logic)
+    // --- FETCH INITIAL STATE ---
+    const [room, participants, messages, timerState] = await Promise.all([
+      roomRepo.findById(roomId),
+      participantRepo.findByRoomId(roomId),
+      messageRepo.findByRoomId(roomId),
+      stateRepo.getRoomTimerState(roomId),
+    ]);
+
+    if (!room) {
+      throw new Error('Room not found');
+    }
+
+    const me = participants.find((p: any) => p.id === participantId);
+    if (!me) {
+      throw new Error('Participant not found');
+    }
+
+    // Map entities to DTOs
+    const roomDTO = {
+      ...room.props,
+      code: room.props.code.toString(),
+      hostSessionId: room.props.hostSessionId.toString(),
+      segments: room.props.segments?.map((s: any) => ({
+        ...s.props
+      })) || []
+    };
+
+    const meDTO = {
+      ...me.props,
+      sessionId: me.props.sessionId.toString()
+    };
+
+    const participantsDTO = participants.map((p: any) => ({
+      ...p.props,
+      sessionId: p.props.sessionId.toString()
+    }));
+
+    const messagesDTO = messages.map((m: any) => ({
+      ...m.props
+    }));
+
+    // Emit initial state
+    socket.emit('room:joined', {
+      room: roomDTO,
+      me: meDTO,
+      participants: participantsDTO,
+      queue: roomDTO.segments,
+      messages: messagesDTO,
+    });
+
+    if (timerState) {
+      socket.emit('room:state', timerState);
+    }
+
+    // --- REGISTER HANDLERS ---
+    handleRoomEvents(io, socket, data, { updateRoomPrefsUseCase });
+    handleQueueEvents(io, socket, data, { updateQueueUseCase, timerService });
+    handleTaskEvents(io, socket, data, { manageTasksUseCase });
+    handleProposalEvents(io, socket, data, { submitProposalUseCase, moderateProposalUseCase });
+    handleChatEvents(io, socket, data, { postMessageUseCase, rateLimiter });
+    handleWhiteboardEvents(io, socket, data);
 
   } catch (e) {
-    console.error(e);
+    console.error('Connection error:', e);
+    socket.emit('error', { message: 'Failed to join room' });
     socket.disconnect();
   }
 

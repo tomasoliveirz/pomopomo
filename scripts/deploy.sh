@@ -5,9 +5,9 @@
 
 set -e
 
-if [ -z "$1" ]; then
-  echo "Usage: ./deploy.sh [USER@HOST]"
-  echo "Example: ./deploy.sh ubuntu@1.2.3.4"
+# Check if running from root
+if [ ! -f "package.json" ]; then
+  echo "❌ Please run this script from the project root: ./scripts/deploy.sh user@host"
   exit 1
 fi
 
@@ -35,12 +35,12 @@ rsync -avz --delete \
 
 # 3. Copy production env
 echo "🔑 Configuring environment..."
-# Check if .env.production exists, if not warn
-if [ -f ".env.production" ]; then
-  scp .env.production "$TARGET:$DEPLOY_DIR/.env"
+# Check if .env exists
+if [ -f ".env" ]; then
+  scp .env "$TARGET:$DEPLOY_DIR/.env"
 else
-  echo "⚠️  .env.production not found! Using .env if available..."
-  scp .env "$TARGET:$DEPLOY_DIR/.env" || echo "❌ No .env file found!"
+  echo "⚠️  .env not found! Please create one from .env.example."
+  exit 1
 fi
 
 # 4. Run Docker Compose

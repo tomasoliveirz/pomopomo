@@ -13,19 +13,19 @@ This guide explains how to deploy PomoPomo to a Linux server using SSH.
 ## Deployment Steps
 
 1.  **Prepare Environment**:
-    -   Edit `.env.production` with your production secrets and URLs.
+    -   Copy `.env.example` to `.env` locally and fill in your production secrets.
     -   Ensure `NEXT_PUBLIC_WS_URL` and `NEXT_PUBLIC_API_URL` point to your server's IP/Domain.
 
 2.  **Run Deploy Script**:
-    Run the `deploy.sh` script from your local machine:
+    Run the deployment script from the project root:
 
     ```bash
-    ./deploy.sh user@your-server-ip
+    ./scripts/deploy.sh user@your-server-ip
     ```
 
     Example:
     ```bash
-    ./deploy.sh ubuntu@51.38.190.126
+    ./scripts/deploy.sh ubuntu@203.0.113.1
     ```
 
 3.  **Verify**:
@@ -39,5 +39,5 @@ This guide explains how to deploy PomoPomo to a Linux server using SSH.
     ```bash
     ssh user@ip
     cd pomopomo
-    docker-compose -f docker-compose.prod.yml logs -f
+    docker compose -f docker-compose.prod.yml logs -f
     ```

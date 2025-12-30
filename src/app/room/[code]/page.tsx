@@ -17,10 +17,41 @@ import ControlDock from '@/components/room/ControlDock';
 import RoomSettingsModal from '@/components/room/RoomSettingsModal';
 import Whiteboard from '@/components/room/Whiteboard';
 import { handleSegmentEnd } from '@/alerts/engine';
+import RoomNotFound from '@/components/RoomNotFound';
 import type { Room, Participant, Segment, Message, RoomStatus } from '@/types';
 
-export default function RoomPage() {
+// Simple Error Boundary Component
+function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-xl shadow-xl max-w-md w-full text-center space-y-4">
+        <h2 className="text-2xl font-bold text-red-600">Something went wrong</h2>
+        <p className="text-gray-600">{error.message}</p>
+        <button
+          onClick={resetErrorBoundary}
+          className="px-6 py-2 bg-gray-900 text-white rounded-full hover:bg-gray-800 transition-colors"
+        >
+          Try again
+        </button>
+      </div>
+    </div>
+  );
+}
+
+import { ErrorBoundary } from 'react-error-boundary';
+
+export default function RoomPageWrapper() {
+  return (
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <RoomPage />
+    </ErrorBoundary>
+  );
+}
+
+function RoomPage() {
   const params = useParams();
+  // ... rest of the component code ...
+
   const router = useRouter();
   const code = params.code as string;
 
@@ -102,20 +133,35 @@ export default function RoomPage() {
 
     const newSocket = io(wsUrl, {
       auth: { token: wsToken },
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'], // Force WebSocket to avoid polling issues
+      reconnectionAttempts: 5,
+      timeout: 10000, // 10s timeout
     });
 
+    // Connection timeout safety
+    const timeoutId = setTimeout(() => {
+      if (!newSocket.connected) {
+        console.error('Connection timed out');
+        setError('Connection timed out. Please try refreshing.');
+        setLoading(false);
+      }
+    }, 15000);
+
     newSocket.on('connect', () => {
-      setLoading(false);
+      clearTimeout(timeoutId);
+      console.log('✅ Socket connected:', newSocket.id);
+      // Don't set loading false here, wait for room:joined
     });
 
     newSocket.on('connect_error', (err) => {
+      clearTimeout(timeoutId);
       console.error('WebSocket connection error:', err.message);
-      setError('Failed to connect to room');
+      setError(`Connection failed: ${err.message}`);
       setLoading(false);
     });
 
     newSocket.on('room:joined', (data) => {
+      console.log('✅ Room joined:', data.room.code);
       setRoom(data.room);
       setMe(data.me);
       setParticipants(data.participants);
@@ -330,23 +376,21 @@ export default function RoomPage() {
   }
 
   if (error && !socket) {
+    return <RoomNotFound />;
+  }
+
+  if (!room || !me) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="card max-w-md text-center">
-          <div className="mb-4 flex justify-center">
+        <div className="text-center">
+          <div className="mb-4 animate-pulse-slow">
             <Logo size="large" />
           </div>
-          <h2 className="text-xl font-semibold mb-2">Connection Error</h2>
-          <p className="mb-4">{error}</p>
-          <button onClick={() => router.push('/')} className="btn-primary">
-            Go Home
-          </button>
+          <div className="text-xl">Synchronizing room data...</div>
         </div>
       </div>
     );
   }
-
-  if (!room || !me) return null;
 
   return (
     <div className="h-dvh min-h-0 flex flex-col overscroll-none bg-bg text-text transition-colors duration-500">

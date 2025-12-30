@@ -19,6 +19,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+ARG NEXT_PUBLIC_WS_URL
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 # Prisma Client is already in node_modules from deps stage
 # Just ensure it's properly generated (offline mode)
 RUN npx prisma generate 2>/dev/null || echo "Using cached Prisma Client"
