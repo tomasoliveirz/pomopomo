@@ -177,6 +177,9 @@ io.on('connection', async (socket: Socket) => {
       messages: messagesDTO,
     });
 
+    // Broadcast to others so they see the new user immediately
+    eventsBus.publishParticipantsUpdated(roomId, participants);
+
     if (timerState) {
       socket.emit('room:state', timerState);
     }

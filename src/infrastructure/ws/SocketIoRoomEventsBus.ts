@@ -21,14 +21,22 @@ export class SocketIoRoomEventsBus implements IRoomEventsBus {
         });
     }
 
-    publishRoomStateUpdated(room: Room): void {
-        this.io.to(room.id).emit('room:state', {
+    publishRoomStateUpdated(room: Room, timerState?: any): void {
+        const payload = timerState ? {
+            status: timerState.status,
+            currentIndex: timerState.currentIndex,
+            serverNow: Date.now(),
+            segmentEndsAt: timerState.segmentEndsAt,
+            remainingSec: timerState.remainingSec
+        } : {
             status: room.status,
             currentIndex: room.currentSegmentIndex,
             serverNow: Date.now(),
             segmentEndsAt: room.props.startsAt ? room.props.startsAt.getTime() + (room.getCurrentSegment()?.durationSec || 0) * 1000 : null,
-            remainingSec: 0 // TODO: Calculate remaining
-        });
+            remainingSec: 0 // Fallback
+        };
+
+        this.io.to(room.id).emit('room:state', payload);
     }
 
     publishQueueUpdated(roomId: string, segments: Segment[]): void {

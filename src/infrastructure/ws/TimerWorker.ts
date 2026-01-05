@@ -85,7 +85,13 @@ export class TimerWorker {
                             });
                             await this.roomRepo.save(nextRoom);
 
-                            this.eventsBus.publishRoomStateUpdated(nextRoom);
+                            this.eventsBus.publishRoomStateUpdated(nextRoom, {
+                                status: 'running',
+                                currentIndex: nextIndex,
+                                segmentEndsAt,
+                                remainingSec: nextSegment.durationSec,
+                                lastUpdateTime: now
+                            });
 
                         } else {
                             // Queue ended
@@ -103,7 +109,13 @@ export class TimerWorker {
                                 lastUpdateTime: now
                             });
 
-                            this.eventsBus.publishRoomStateUpdated(endedRoom);
+                            this.eventsBus.publishRoomStateUpdated(endedRoom, {
+                                status: 'ended',
+                                currentIndex: timerState.currentIndex,
+                                segmentEndsAt: null,
+                                remainingSec: 0,
+                                lastUpdateTime: now
+                            });
                         }
                     }
                 }

@@ -5,7 +5,7 @@ import { Segment } from '../../domain/entities/Segment';
 export interface IRoomEventsBus {
     publishRoomCreated(room: Room): void;
     publishRoomJoined(room: Room, participant: Participant): void;
-    publishRoomStateUpdated(room: Room): void;
+    publishRoomStateUpdated(room: Room, timerState?: any): void;
     publishQueueUpdated(roomId: string, segments: Segment[]): void;
     publishParticipantsUpdated(roomId: string, participants: Participant[]): void;
 }
