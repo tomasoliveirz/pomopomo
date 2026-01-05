@@ -81,7 +81,8 @@ export class TimerWorker {
                             // I need to construct a new Room with updated index.
                             const nextRoom = new Room({
                                 ...room.props,
-                                currentSegmentIndex: nextIndex
+                                currentSegmentIndex: nextIndex,
+                                startsAt: new Date(now)
                             });
                             await this.roomRepo.save(nextRoom);
 
