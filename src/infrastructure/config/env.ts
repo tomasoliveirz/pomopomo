@@ -16,15 +16,31 @@ const envSchema = z.object({
 
 const parsed = envSchema.safeParse(process.env);
 
-if (!parsed.success) {
+let envData: z.infer<typeof envSchema>;
+
+if (parsed.success) {
+    envData = parsed.data;
+} else if (process.env.SKIP_ENV_VALIDATION || process.env.NEXT_PHASE === 'phase-production-build') {
+    console.warn('⚠️ Skipping environment validation for build');
+    envData = {
+        DATABASE_URL: 'postgresql://mock:5432/mock',
+        REDIS_URL: 'redis://mock:6379',
+        JWT_SECRET: 'mock-secret',
+        SESSION_SECRET: 'mock-session-secret',
+        NEXT_PUBLIC_WS_URL: 'http://localhost:3001',
+        NEXT_PUBLIC_API_URL: 'http://localhost:3000',
+        WS_PORT: 3001,
+        ROOM_TTL_HOURS: 24,
+    };
+} else {
     console.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors);
     throw new Error('Invalid environment variables');
 }
 
 export const config = {
-    ...parsed.data,
+    ...envData,
     room: {
-        ttlHours: parsed.data.ROOM_TTL_HOURS,
+        ttlHours: envData.ROOM_TTL_HOURS,
         maxParticipants: parseInt(process.env.MAX_PARTICIPANTS_PER_ROOM || '20', 10),
     },
     rateLimit: {
@@ -42,7 +58,7 @@ export const config = {
         },
     },
     ws: {
-        port: parsed.data.WS_PORT,
+        port: envData.WS_PORT,
         cors: {
             origin: process.env.NODE_ENV === 'production'
                 ? [
