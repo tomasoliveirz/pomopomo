@@ -433,6 +433,7 @@ function RoomPage() {
             }
           });
         }}
+        onReportClick={() => setShowReportModal(true)}
       />
 
       {error && (
@@ -495,7 +496,7 @@ function RoomPage() {
           setSettingsTab('timer');
           setShowSettings(true);
         }}
-        onReport={() => setShowReportModal(true)}
+
         queueOpen={queueOpen}
         chatOpen={chatOpen}
         whiteboardOpen={whiteboardOpen}

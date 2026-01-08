@@ -10,7 +10,7 @@ interface RoomHeaderProps {
   onShareClick: () => void;
 }
 
-export default function RoomHeader({ room, onShareClick }: RoomHeaderProps) {
+export default function RoomHeader({ room, onShareClick, onReportClick }: RoomHeaderProps & { onReportClick: () => void }) {
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [showSharePopup, setShowSharePopup] = useState(false);
 
@@ -35,6 +35,14 @@ export default function RoomHeader({ room, onShareClick }: RoomHeaderProps) {
               <span className="opacity-60">Room:</span>{' '}
               <span className="font-mono font-semibold">{room.code}</span>
             </div>
+
+            <button
+              onClick={onReportClick}
+              className="btn-ghost px-3 py-1 text-sm transition-colors text-text/60 hover:text-text"
+              title="Report a bug"
+            >
+              🐛 Report
+            </button>
 
             <button
               onClick={() => setShowSharePopup(true)}
