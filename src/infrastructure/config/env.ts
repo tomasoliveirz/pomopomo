@@ -27,8 +27,8 @@ if (parsed.success) {
         REDIS_URL: 'redis://mock:6379',
         JWT_SECRET: 'mock-secret',
         SESSION_SECRET: 'mock-session-secret',
-        NEXT_PUBLIC_WS_URL: 'http://localhost:3001',
-        NEXT_PUBLIC_API_URL: 'http://localhost:3000',
+        NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001',
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
         WS_PORT: 3001,
         ROOM_TTL_HOURS: 24,
     };
