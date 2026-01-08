@@ -71,22 +71,19 @@ export default function HomePage() {
             >
               <span>🚪 Join Room</span>
             </motion.button>
-          </motion.button>
+          </div>
+
+          <div className="mt-8">
+            <button
+              onClick={() => router.push('/report')}
+              className="text-sm text-gray-500 hover:text-gray-800 transition-colors flex items-center justify-center gap-1 mx-auto"
+            >
+              <span>🐛 Report a bug</span>
+            </button>
+          </div>
         </div>
 
-        <div className="mt-8">
-          <button
-            onClick={() => router.push('/report')}
-            className="text-sm text-gray-500 hover:text-gray-800 transition-colors flex items-center justify-center gap-1 mx-auto"
-          >
-            <span>🐛 Report a bug</span>
-          </button>
-        </div>
+      </motion.div>
     </div>
-
-
-
-      </motion.div >
-    </div >
   );
 }
