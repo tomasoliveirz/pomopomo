@@ -11,6 +11,7 @@ interface ControlDockProps {
     chatOpen: boolean;
     whiteboardOpen: boolean;
     unreadMessages?: number;
+    onReport: () => void;
 }
 
 export default function ControlDock({
@@ -18,6 +19,7 @@ export default function ControlDock({
     onToggleChat,
     onToggleWhiteboard,
     onOpenSettings,
+    onReport,
     queueOpen,
     chatOpen,
     whiteboardOpen,
@@ -54,6 +56,13 @@ export default function ControlDock({
 
                 {/* Separator */}
                 <div className="w-px h-8 bg-black/5 mx-1" />
+
+                {/* Report Bug */}
+                <DockItem
+                    label="Report"
+                    icon="🐛"
+                    onClick={onReport}
+                />
 
                 {/* Settings */}
                 <DockItem

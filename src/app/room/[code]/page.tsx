@@ -15,6 +15,7 @@ import AlertsSettings from '@/components/AlertsSettings';
 import Toast from '@/components/Toast';
 import ControlDock from '@/components/room/ControlDock';
 import RoomSettingsModal from '@/components/room/RoomSettingsModal';
+import ReportModal from '@/components/room/ReportModal';
 import Whiteboard from '@/components/room/Whiteboard';
 import { handleSegmentEnd } from '@/alerts/engine';
 import RoomNotFound from '@/components/RoomNotFound';
@@ -74,6 +75,7 @@ function RoomPage() {
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'timer' | 'sounds'>('timer');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -493,11 +495,19 @@ function RoomPage() {
           setSettingsTab('timer');
           setShowSettings(true);
         }}
+        onReport={() => setShowReportModal(true)}
         queueOpen={queueOpen}
         chatOpen={chatOpen}
         whiteboardOpen={whiteboardOpen}
         unreadMessages={unreadMessages}
       />
+
+      {/* Report Modal */}
+      <AnimatePresence>
+        {showReportModal && (
+          <ReportModal onClose={() => setShowReportModal(false)} />
+        )}
+      </AnimatePresence>
 
       {/* Whiteboard */}
       <AnimatePresence>
