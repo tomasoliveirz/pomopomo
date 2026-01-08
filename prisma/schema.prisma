@@ -174,4 +174,14 @@ model DailyStatistic {
   @@map("daily_statistics")
 }
 
+model Report {
+  id        String   @id @default(uuid())
+  name      String?
+  subject   String
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("reports")
+}
+
 
