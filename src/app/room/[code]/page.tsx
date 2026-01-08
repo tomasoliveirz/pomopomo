@@ -303,6 +303,28 @@ function RoomPage() {
     }
   }, [room?.theme]);
 
+  // Safety Check: If timer is running but stuck at 00:00, request sync
+  useEffect(() => {
+    if (!timerState || !socket) return;
+
+    let timeoutId: NodeJS.Timeout;
+
+    if (timerState.status === 'running' && timerState.segmentEndsAt) {
+      const now = Date.now();
+      const remaining = Math.ceil((timerState.segmentEndsAt - now) / 1000);
+
+      if (remaining <= 0) {
+        // Timer should have transitioned. If we are still here after 3s, request sync.
+        timeoutId = setTimeout(() => {
+          console.warn('⚠️ Timer stuck at 00:00, requesting sync...');
+          socket.emit('room:request-sync');
+        }, 3000);
+      }
+    }
+
+    return () => clearTimeout(timeoutId);
+  }, [timerState, socket]);
+
   // Calculate unread messages (mock logic or real if available)
   const unreadMessages = 0; // You might want to implement real unread count later
 

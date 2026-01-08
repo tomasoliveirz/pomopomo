@@ -16,6 +16,8 @@ export class TimerWorker {
         private clock: IClock
     ) { }
 
+    private lastBroadcasts: Map<string, number> = new Map();
+
     start() {
         if (this.interval) return;
 
@@ -34,6 +36,7 @@ export class TimerWorker {
                 for (const room of runningRooms) {
                     const timerState = await this.stateRepo.getRoomTimerState(room.id);
 
+                    // 1. Check for Segment End (Transition)
                     if (timerState?.segmentEndsAt && timerState.segmentEndsAt <= now) {
                         console.log(`⏰ Segment ended for room ${room.code}, auto - advancing...`);
 
@@ -45,20 +48,13 @@ export class TimerWorker {
                             const segmentEndsAt = now + nextSegment.durationSec * 1000;
 
                             // Update Room
-                            const updatedRoom = new Room({
+                            // We need to construct a new Room with updated index.
+                            const nextRoom = new Room({
                                 ...room.props,
                                 currentSegmentIndex: nextIndex,
-                                // startsAt?
+                                startsAt: new Date(now)
                             });
-                            // We need to persist this change.
-                            // But Room entity props are read-only in my implementation?
-                            // I should fix Room entity or use a new instance.
-                            // I used new Room above.
-
-                            // We need to update DB status/index
-                            // roomRepo.save(updatedRoom)
-                            // But wait, roomRepo.save expects a Room object.
-                            // I need to make sure I update the fields correctly.
+                            await this.roomRepo.save(nextRoom);
 
                             // Also update Redis state
                             await this.stateRepo.setRoomTimerState(room.id, {
@@ -69,23 +65,6 @@ export class TimerWorker {
                                 lastUpdateTime: now
                             });
 
-                            // Update DB
-                            // We need to update currentSegmentIndex
-                            // I'll use a specific method or save.
-                            // Since I don't have a clean way to update partials in my Room entity yet (it's immutable),
-                            // I'll just use save() with the modified Room.
-                            // But I need to construct the modified Room carefully.
-                            // The `room` variable here comes from `findRunningRooms`.
-
-                            // Let's assume `save` updates the fields.
-                            // I need to construct a new Room with updated index.
-                            const nextRoom = new Room({
-                                ...room.props,
-                                currentSegmentIndex: nextIndex,
-                                startsAt: new Date(now)
-                            });
-                            await this.roomRepo.save(nextRoom);
-
                             this.eventsBus.publishRoomStateUpdated(nextRoom, {
                                 status: 'running',
                                 currentIndex: nextIndex,
@@ -93,6 +72,9 @@ export class TimerWorker {
                                 remainingSec: nextSegment.durationSec,
                                 lastUpdateTime: now
                             });
+
+                            // Update last broadcast time so we don't double send immediately
+                            this.lastBroadcasts.set(room.id, now);
 
                         } else {
                             // Queue ended
@@ -117,6 +99,25 @@ export class TimerWorker {
                                 remainingSec: 0,
                                 lastUpdateTime: now
                             });
+
+                            this.lastBroadcasts.delete(room.id);
+                        }
+                    }
+                    // 2. Heartbeat: Broadcast state every 10 seconds if running
+                    else if (timerState && timerState.status === 'running') {
+                        const lastBroadcast = this.lastBroadcasts.get(room.id) || 0;
+                        if (now - lastBroadcast >= 10000) { // 10 seconds
+                            // Calculate current remaining time for accuracy
+                            const remainingSec = timerState.segmentEndsAt
+                                ? Math.max(0, Math.ceil((timerState.segmentEndsAt - now) / 1000))
+                                : 0;
+
+                            this.eventsBus.publishRoomStateUpdated(room, {
+                                ...timerState,
+                                remainingSec,
+                                lastUpdateTime: now
+                            });
+                            this.lastBroadcasts.set(room.id, now);
                         }
                     }
                 }

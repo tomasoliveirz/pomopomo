@@ -192,6 +192,14 @@ io.on('connection', async (socket: Socket) => {
     handleChatEvents(io, socket, data, { postMessageUseCase, rateLimiter });
     handleWhiteboardEvents(io, socket, data);
 
+    // --- SYNC HANDLER ---
+    socket.on('room:request-sync', async () => {
+      const currentState = await stateRepo.getRoomTimerState(roomId);
+      if (currentState) {
+        socket.emit('room:state', currentState);
+      }
+    });
+
   } catch (e) {
     console.error('Connection error:', e);
     socket.emit('error', { message: 'Failed to join room' });
