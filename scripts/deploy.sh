@@ -39,13 +39,12 @@ echo "🔑 Configuring environment..."
 if [ -f ".env" ]; then
   scp .env "$TARGET:$DEPLOY_DIR/.env"
 else
-  echo "⚠️  .env not found! Please create one from .env.example."
-  exit 1
+  echo "⚠️  Local .env not found. Assuming remote environment is already configured."
 fi
 
 # 4. Run Docker Compose
 echo "🐳 Starting containers..."
-ssh "$TARGET" "cd $DEPLOY_DIR && docker compose -f docker-compose.prod.yml up -d --build"
+ssh "$TARGET" "cd $DEPLOY_DIR && DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose -f docker-compose.prod.yml up -d --build"
 
 echo "✅ Deployment complete!"
 echo "   App should be running at http://$(echo $TARGET | cut -d@ -f2):3000"
