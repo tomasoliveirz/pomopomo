@@ -41,6 +41,9 @@ Broadcasted whenever the timer or room status changes.
 }
 ```
 
+#### `room:request-sync` (Client -> Server)
+Sent by the client if it detects a drift or missing state (e.g., timer stuck at 00:00). Server responds with `room:state`.
+
 #### `room:host-transferred` (Server -> Client)
 Broadcasted when the host changes (e.g., previous host disconnected).
 ```typescript

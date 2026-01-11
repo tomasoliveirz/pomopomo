@@ -75,27 +75,16 @@ This document details the internal workings of the timer and queue system in Pom
     *   Previously, `startsAt` wasn't updated in the DB. If Redis data was lost, the fallback calculation used the *old* `startsAt`, resulting in a finished timer.
     *   *Status:* **Fixed** in the previous deployment.
 
-## 4. Proposed Solution: "Heartbeat" & Client Polling
+## 4. Implemented Solution: "Heartbeat" & Client Polling
 
-To make the system "bulletproof" against network issues, we need redundancy.
+To make the system "bulletproof" against network issues, we implemented redundancy:
 
 ### A. Server-Side Heartbeat (Proactive)
-The `TimerWorker` currently only emits events when a *change* occurs (transition).
-*   **Change:** Make `TimerWorker` emit a `room:sync` or `room:state` event periodically (e.g., every 5 or 10 seconds) for *all* running rooms, even if the segment hasn't changed.
+The `TimerWorker` emits a `room:state` event periodically (every 10 seconds) for *all* running rooms, even if the segment hasn't changed.
 *   **Benefit:** If a client misses the "transition" event, they will catch the next "heartbeat" event within a few seconds and correct their state.
 
 ### B. Client-Side Safety Check (Reactive)
 The client knows when the timer *should* end.
-*   **Change:** If the local timer reaches `00:00` and stays there for > 2 seconds without receiving a state update:
-    *   **Action:** Client emits a `room:request-sync` event or calls an API endpoint.
+*   **Logic:** If the local timer reaches `00:00` and stays there for > 2 seconds without receiving a state update:
+    *   **Action:** Client emits a `room:request-sync` event.
     *   **Server:** Responds with the current full state.
-
-## 5. Implementation Plan
-
-1.  **Modify `TimerWorker`:**
-    *   Add a counter or timestamp to track last broadcast.
-    *   Force a `room:state` broadcast every 10 seconds for running rooms.
-
-2.  **Modify Frontend (`page.tsx` / `useIntervals`):**
-    *   Add a check in the countdown effect.
-    *   If `remaining <= 0` and `status === 'running'`, trigger a fetch to `/api/rooms/[code]` or emit a socket request to get fresh state.
