@@ -5,10 +5,12 @@ export interface TokenPayload {
     sessionId: string;
     participantId: string;
     role: Role;
+    actorType: 'user' | 'guest';
+    userId?: string | null;
 }
 
 export interface IAuthService {
-    generateToken(payload: TokenPayload): Promise<string>;
+    generateToken(payload: TokenPayload, expiresIn?: string): Promise<string>;
     verifyToken(token: string): Promise<TokenPayload | null>;
     generateSessionId(): string;
 }

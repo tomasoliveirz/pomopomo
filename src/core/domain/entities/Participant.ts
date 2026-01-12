@@ -5,6 +5,7 @@ export interface ParticipantProps {
     id: string;
     roomId: string;
     sessionId: SessionId;
+    userId?: string | null;
     displayName: string;
     role: Role;
     isMuted: boolean;
@@ -21,6 +22,7 @@ export class Participant {
 
     get id() { return this.props.id; }
     get sessionId() { return this.props.sessionId; }
+    get userId() { return this.props.userId; }
     get displayName() { return this.props.displayName; }
     get role() { return this.props.role; }
     get isMuted() { return this.props.isMuted; }

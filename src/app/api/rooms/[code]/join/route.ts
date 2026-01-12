@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { container } from '@/app/container';
 import { joinRoomSchema } from '@/lib/validators';
-import { cookies } from 'next/headers';
+import { getActorFromRequest } from '@/lib/actor';
 
 export async function POST(
   request: NextRequest,
@@ -12,22 +12,17 @@ export async function POST(
     const body = await request.json();
     const validated = joinRoomSchema.parse({ ...body, code });
 
-    // Get or create session ID
-    const cookieStore = cookies();
-    let sessionId = cookieStore.get('sessionId')?.value;
-
-    if (!sessionId) {
-      sessionId = container.authService.generateSessionId();
-    }
+    const actor = await getActorFromRequest();
 
     // Execute Use Case
     const { room, participant, token } = await container.joinRoomUseCase.execute({
       code,
-      sessionId,
+      sessionId: actor.sessionId,
+      userId: actor.actorType === 'user' ? actor.userId : null,
       displayName: validated.displayName
     });
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       data: {
         participant: {
@@ -48,21 +43,8 @@ export async function POST(
         wsToken: token,
       },
     });
-
-    // Set session cookie
-    response.cookies.set('sessionId', sessionId!, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-      path: '/',
-    });
-
-    return response;
   } catch (error: any) {
     console.error('Join room error:', error);
-    // Handle specific errors (e.g., RoomNotFound, RoomFull) if Use Case throws them
-    // For now, generic error handling
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to join room' },
       { status: 400 }

@@ -59,6 +59,7 @@ model Room {
   id                  String       @id @default(uuid())
   code                String       @unique
   hostSessionId       String       @map("host_session_id")
+  hostUserId          String?      @map("host_user_id")
   theme               Theme        @default(lofi_girl)
   status              RoomStatus   @default(idle)
   currentSegmentIndex Int          @default(0) @map("current_segment_index")

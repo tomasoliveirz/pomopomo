@@ -8,6 +8,7 @@ export interface RoomProps {
     id: string;
     code: RoomCode;
     hostSessionId: SessionId;
+    hostUserId?: string | null;
     theme: Theme;
     status: RoomStatus;
     currentSegmentIndex: number;

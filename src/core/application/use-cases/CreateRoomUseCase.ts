@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface CreateRoomInput {
     theme?: Theme;
     hostSessionId: string;
+    hostUserId?: string | null;
     hostName?: string;
 }
 
@@ -40,6 +41,7 @@ export class CreateRoomUseCase {
             id: uuidv4(),
             code: code,
             hostSessionId: sessionId,
+            hostUserId: input.hostUserId,
             theme: input.theme || 'lofi_girl',
             status: 'idle',
             currentSegmentIndex: 0,
@@ -53,6 +55,7 @@ export class CreateRoomUseCase {
             id: uuidv4(),
             roomId: room.id,
             sessionId: sessionId,
+            userId: input.hostUserId,
             displayName: input.hostName || 'Host',
             role: 'host',
             isMuted: false,

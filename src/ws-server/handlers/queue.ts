@@ -2,42 +2,23 @@ import { Server, Socket } from 'socket.io';
 import { TimerService } from '../../core/application/use-cases/TimerService';
 import { UpdateQueueUseCase } from '../../core/application/use-cases/UpdateQueueUseCase';
 import type { ClientEvents, ServerEvents } from '../../types';
-
-interface SocketData {
-  payload: any;
-  roomId: string;
-  participantId: string;
-}
+import { requireHost } from '../guards';
 
 export function handleQueueEvents(
   io: Server<ClientEvents, ServerEvents>,
   socket: Socket<ClientEvents, ServerEvents>,
-  data: SocketData,
+  data: any,
   dependencies: {
     timerService: TimerService;
     updateQueueUseCase: UpdateQueueUseCase;
   }
 ) {
-  const { roomId, payload } = data;
+  const { roomId } = socket.data;
   const { timerService, updateQueueUseCase } = dependencies;
 
-  // Only host can modify queue
-  const requireHost = (callback: Function) => {
-    if (payload.role !== 'host') {
-      socket.emit('error', { message: 'Only host can perform this action', code: 'FORBIDDEN' });
-      return false;
-    }
-    return true;
-  };
-
   socket.on('queue:play', async (playData) => {
-    if (!requireHost(() => { })) return;
     try {
-      // TODO: Handle play specific index if needed by TimerService
-      // Currently TimerService.start() resumes or starts current.
-      // If playData.index is provided, we might need to skip to that index first.
-      // But TimerService doesn't support "jump to index" yet.
-      // For now, let's just call start().
+      requireHost(socket);
       await timerService.start(roomId);
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to play queue' });
@@ -45,8 +26,8 @@ export function handleQueueEvents(
   });
 
   socket.on('queue:pause', async () => {
-    if (!requireHost(() => { })) return;
     try {
+      requireHost(socket);
       await timerService.pause(roomId);
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to pause queue' });
@@ -54,8 +35,8 @@ export function handleQueueEvents(
   });
 
   socket.on('queue:skip', async () => {
-    if (!requireHost(() => { })) return;
     try {
+      requireHost(socket);
       await timerService.skip(roomId);
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to skip segment' });
@@ -63,8 +44,8 @@ export function handleQueueEvents(
   });
 
   socket.on('queue:replace', async (data, callback) => {
-    if (!requireHost(callback || (() => { }))) return;
     try {
+      requireHost(socket);
       await updateQueueUseCase.replaceQueue({
         roomId,
         segments: data.segments.map(s => ({
@@ -83,8 +64,8 @@ export function handleQueueEvents(
   });
 
   socket.on('queue:reorder', async (data, callback) => {
-    if (!requireHost(callback || (() => { }))) return;
     try {
+      requireHost(socket);
       await updateQueueUseCase.reorderQueue({
         roomId,
         fromIndex: data.from,
@@ -99,8 +80,8 @@ export function handleQueueEvents(
   });
 
   socket.on('queue:add', async (data, callback) => {
-    if (!requireHost(callback || (() => { }))) return;
     try {
+      requireHost(socket);
       await updateQueueUseCase.addSegment({
         roomId,
         kind: data.segment.kind,

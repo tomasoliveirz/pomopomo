@@ -90,9 +90,15 @@ timerWorker.start();
 
 // Store socket metadata
 interface SocketData {
-  payload: WsTokenPayload;
+  actor: {
+    actorType: 'user' | 'guest';
+    actorId: string;
+    sessionId: string;
+    userId?: string | null;
+  };
   roomId: string;
   participantId: string;
+  roomRole: string;
 }
 
 // Authentication middleware
@@ -103,7 +109,16 @@ io.use(async (socket, next) => {
   const payload = await authService.verifyToken(token);
   if (!payload) return next(new Error('Invalid token'));
 
-  (socket as any).data = { payload, roomId: payload.roomId, participantId: payload.participantId } as SocketData;
+  // 3. Store in socket.data (avoid clobbering)
+  socket.data.actor = {
+    actorType: payload.actorType,
+    actorId: payload.userId || payload.sessionId,
+    sessionId: payload.sessionId,
+    userId: payload.userId,
+  };
+  socket.data.roomId = payload.roomId;
+  socket.data.participantId = payload.participantId;
+  socket.data.roomRole = payload.role;
   next();
 });
 
@@ -115,7 +130,7 @@ const disconnectManager = new DisconnectManager();
 
 io.on('connection', async (socket: Socket) => {
   const data = (socket as any).data as SocketData;
-  const { roomId, participantId, payload } = data;
+  const { roomId, participantId } = data;
 
   console.log(`✅ Client connected: ${participantId} to room ${roomId}`);
 

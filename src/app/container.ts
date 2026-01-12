@@ -33,5 +33,7 @@ const joinRoomUseCase = new JoinRoomUseCase(
 export const container = {
     createRoomUseCase,
     joinRoomUseCase,
-    authService
+    authService,
+    roomRepo,
+    participantRepo
 };

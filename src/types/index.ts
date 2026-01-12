@@ -146,6 +146,8 @@ export interface WsTokenPayload {
   sessionId: string;
   participantId: string;
   role: Role;
+  actorType: 'user' | 'guest';
+  userId?: string | null;
   exp: number;
 }
 

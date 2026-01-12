@@ -1,37 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { container } from '../../container';
 import { createRoomSchema } from '@/lib/validators';
-import { cookies } from 'next/headers';
-import { v4 as uuidv4 } from 'uuid';
+import { getActorFromRequest } from '@/lib/actor';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validated = createRoomSchema.parse(body);
 
-    // Get or create session ID
-    const cookieStore = cookies();
-    let sessionId = cookieStore.get('sessionId')?.value;
-
-    if (!sessionId) {
-      sessionId = container.authService.generateSessionId();
-    }
+    const actor = await getActorFromRequest();
 
     const { room, host, code: roomCode } = await container.createRoomUseCase.execute({
       theme: validated.theme,
-      hostSessionId: sessionId,
+      hostSessionId: actor.sessionId,
+      hostUserId: actor.actorType === 'user' ? actor.userId : null,
       hostName: body.hostName
     });
 
     // Create WS token
     const wsToken = await container.authService.generateToken({
       roomId: room.id,
-      sessionId,
+      sessionId: actor.sessionId,
       participantId: host.id,
       role: 'host',
+      actorType: actor.actorType,
+      userId: actor.actorType === 'user' ? actor.userId : null,
     });
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       data: {
         room: {
@@ -52,17 +48,6 @@ export async function POST(request: NextRequest) {
         wsToken,
       },
     });
-
-    // Set session cookie
-    response.cookies.set('sessionId', sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-      path: '/',
-    });
-
-    return response;
   } catch (error: any) {
     console.error('Create room error:', error);
     return NextResponse.json(

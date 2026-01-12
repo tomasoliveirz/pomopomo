@@ -9,11 +9,11 @@ export class JwtAuthService implements IAuthService {
         this.secret = new TextEncoder().encode(config.JWT_SECRET);
     }
 
-    async generateToken(payload: TokenPayload): Promise<string> {
+    async generateToken(payload: TokenPayload, expiresIn: string = '24h'): Promise<string> {
         return new SignJWT({ ...payload })
             .setProtectedHeader({ alg: 'HS256' })
             .setIssuedAt()
-            .setExpirationTime('24h') // Token valid for 24h
+            .setExpirationTime(expiresIn)
             .sign(this.secret);
     }
 
