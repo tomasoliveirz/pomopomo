@@ -1,14 +1,21 @@
+import { PrismaClient } from '@prisma/client';
 import { IRoomRepository } from '../../../core/application/ports/IRoomRepository';
 import { Room } from '../../../core/domain/entities/Room';
 import { RoomCode } from '../../../core/domain/value-objects/RoomCode';
 import { SessionId } from '../../../core/domain/value-objects/SessionId';
-import { prisma } from './prismaClient';
+import { prisma as globalPrisma } from './prismaClient';
 import { Theme, RoomStatus, SegmentKind } from '../../../core/domain/types';
 import { Segment } from '../../../core/domain/entities/Segment';
 
 export class PrismaRoomRepository implements IRoomRepository {
+    private client: PrismaClient;
+
+    constructor(client?: PrismaClient) {
+        this.client = client || globalPrisma;
+    }
+
     async save(room: Room): Promise<void> {
-        await prisma.room.upsert({
+        await this.client.room.upsert({
             where: { id: room.id },
             update: {
                 status: room.status,
@@ -32,7 +39,7 @@ export class PrismaRoomRepository implements IRoomRepository {
     }
 
     async findByCode(code: RoomCode): Promise<Room | null> {
-        const data = await prisma.room.findUnique({
+        const data = await this.client.room.findUnique({
             where: { code: code.toString() },
             include: { segments: true },
         });
@@ -43,7 +50,7 @@ export class PrismaRoomRepository implements IRoomRepository {
     }
 
     async findById(id: string): Promise<Room | null> {
-        const data = await prisma.room.findUnique({
+        const data = await this.client.room.findUnique({
             where: { id },
             include: { segments: true },
         });
@@ -54,11 +61,11 @@ export class PrismaRoomRepository implements IRoomRepository {
     }
 
     async delete(id: string): Promise<void> {
-        await prisma.room.delete({ where: { id } });
+        await this.client.room.delete({ where: { id } });
     }
 
     async findRunningRooms(): Promise<Room[]> {
-        const data = await prisma.room.findMany({
+        const data = await this.client.room.findMany({
             where: { status: 'running' },
         });
         return data.map(this.mapToDomain);

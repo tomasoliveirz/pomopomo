@@ -7,7 +7,7 @@ import Logo from './Logo';
 export default function JoinRoom() {
   const searchParams = useSearchParams();
   const urlCode = searchParams.get('code');
-  
+
   const [code, setCode] = useState(urlCode || '');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,9 +16,11 @@ export default function JoinRoom() {
   const router = useRouter();
 
   useEffect(() => {
-    // Se o código vier da URL, bloquear e focar no nome
+    // If code comes from URL, normalize and lock
     if (urlCode) {
-      setCode(urlCode);
+      // Basic normalization for display
+      const normalized = urlCode.toUpperCase().replace(/^POMO-/, '').trim();
+      setCode(normalized);
       setIsCodeLocked(true);
       // Focar no input de nome após um pequeno delay
       setTimeout(() => {
@@ -29,7 +31,7 @@ export default function JoinRoom() {
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!code.trim() || !displayName.trim()) {
       setError('Please enter both room code and display name');
       return;
@@ -39,7 +41,8 @@ export default function JoinRoom() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/rooms/${code.trim()}/join`, {
+      const normalizedCode = code.trim().toUpperCase().replace(/^POMO-/, '');
+      const response = await fetch(`/api/rooms/${normalizedCode}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ displayName: displayName.trim() }),
@@ -53,9 +56,13 @@ export default function JoinRoom() {
 
       // Store WS token in localStorage
       localStorage.setItem('wsToken', result.data.wsToken);
-      
-      // Redirect to room
-      router.push(`/room/${code.trim()}`);
+      if (result.data.participant?.id) {
+        localStorage.setItem('participantId', result.data.participant.id);
+      }
+      localStorage.setItem('roomCode', normalizedCode);
+
+      // Redirect to room with normalized code
+      router.push(`/room/${normalizedCode}`);
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -85,9 +92,21 @@ export default function JoinRoom() {
                 type="text"
                 id="code"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="e.g., pomo-7QRX"
-                className={`input ${isCodeLocked ? 'bg-accent-subtle/30 cursor-not-allowed' : ''}`}
+                onChange={(e) => {
+                  // Start typing: alphanumeric only
+                  const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                  setCode(val);
+                }}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const pasted = e.clipboardData.getData('text');
+                  // Normalize pasted content: remove pomo- prefix, keep alphanumeric, trim
+                  const normalized = pasted.trim().toUpperCase().replace(/^POMO-/, '').replace(/[^A-Z0-9]/g, '');
+                  setCode(normalized.slice(0, 4));
+                }}
+                maxLength={4}
+                placeholder="e.g., ABCD"
+                className={`input font-mono uppercase ${isCodeLocked ? 'bg-accent-subtle/30 cursor-not-allowed' : ''}`}
                 disabled={loading || isCodeLocked}
                 readOnly={isCodeLocked}
               />

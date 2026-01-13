@@ -1,11 +1,17 @@
+import { PrismaClient } from '@prisma/client';
 import { ISegmentRepository } from '../../../core/application/ports/ISegmentRepository';
 import { Segment } from '../../../core/domain/entities/Segment';
-import { prisma } from './prismaClient';
+import { prisma as globalPrisma } from './prismaClient';
 import { SegmentKind } from '../../../core/domain/types';
 
 export class PrismaSegmentRepository implements ISegmentRepository {
+    private client: PrismaClient;
+
+    constructor(client?: PrismaClient) {
+        this.client = client || globalPrisma;
+    }
     async save(segment: Segment): Promise<void> {
-        await prisma.segment.upsert({
+        await this.client.segment.upsert({
             where: { id: segment.id },
             update: {
                 kind: segment.kind,
@@ -27,11 +33,11 @@ export class PrismaSegmentRepository implements ISegmentRepository {
     }
 
     async delete(id: string): Promise<void> {
-        await prisma.segment.delete({ where: { id } });
+        await this.client.segment.delete({ where: { id } });
     }
 
     async findByRoomId(roomId: string): Promise<Segment[]> {
-        const data = await prisma.segment.findMany({
+        const data = await this.client.segment.findMany({
             where: { roomId },
             orderBy: { order: 'asc' },
         });
@@ -48,6 +54,6 @@ export class PrismaSegmentRepository implements ISegmentRepository {
     }
 
     async deleteAllByRoomId(roomId: string): Promise<void> {
-        await prisma.segment.deleteMany({ where: { roomId } });
+        await this.client.segment.deleteMany({ where: { roomId } });
     }
 }

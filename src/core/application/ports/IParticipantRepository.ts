@@ -6,4 +6,5 @@ export interface IParticipantRepository {
     findBySessionId(roomId: string, sessionId: string): Promise<Participant | null>;
     findByUserId(roomId: string, userId: string): Promise<Participant | null>;
     findById(id: string): Promise<Participant | null>;
+    linkGuestToUser(sessionId: string, userId: string): Promise<void>;
 }

@@ -1,3 +1,4 @@
+import { ITimerScheduler } from '../ports/ITimerScheduler';
 import { IRoomRepository } from '../ports/IRoomRepository';
 import { IStateRepository, RoomTimerState } from '../ports/IStateRepository';
 import { IRoomEventsBus } from '../ports/IRoomEventsBus';
@@ -9,7 +10,8 @@ export class TimerService {
         private roomRepo: IRoomRepository,
         private stateRepo: IStateRepository,
         private eventsBus: IRoomEventsBus,
-        private clock: IClock
+        private clock: IClock,
+        private scheduler: ITimerScheduler
     ) { }
 
     async start(roomId: string): Promise<void> {
@@ -42,14 +44,6 @@ export class TimerService {
 
         await this.stateRepo.setRoomTimerState(roomId, newState);
 
-        // Update room status in DB as well
-        // We need to mutate the room entity and save it
-        // But Room entity is immutable-ish in my implementation (props are readonly)
-        // I should add methods to Room to change status
-        // For now, I'll just update the repo directly or assume Room has methods
-        // Let's assume I can update the room status via repo or create a new Room instance
-
-        // Actually, I should update the Room entity
         const updatedRoom = new Room({
             ...room.props,
             status: 'running',
@@ -57,7 +51,16 @@ export class TimerService {
         });
         await this.roomRepo.save(updatedRoom);
 
-        this.eventsBus.publishRoomStateUpdated(updatedRoom);
+        this.eventsBus.publishRoomStateUpdated(updatedRoom, newState);
+
+        // Schedule event-driven transition
+        if (process.env.TIMER_MODE === 'bullmq') {
+            await this.scheduler.scheduleSegmentEnd(
+                roomId,
+                room.currentSegmentIndex,
+                Math.max(0, segmentEndsAt - now)
+            );
+        }
     }
 
     async pause(roomId: string): Promise<void> {
@@ -87,7 +90,13 @@ export class TimerService {
         });
         await this.roomRepo.save(updatedRoom);
 
-        this.eventsBus.publishRoomStateUpdated(updatedRoom);
+        this.eventsBus.publishRoomStateUpdated(updatedRoom, newState);
+
+        // Cancel scheduled transition
+        if (process.env.TIMER_MODE === 'bullmq') {
+            // Use state index as source of truth for the running job
+            await this.scheduler.cancelSegmentEnd(roomId, currentState.currentIndex);
+        }
     }
 
     async skip(roomId: string): Promise<void> {
@@ -95,15 +104,9 @@ export class TimerService {
         if (!room) throw new Error('Room not found');
 
         const nextIndex = room.currentSegmentIndex + 1;
-        // Check if next index is valid?
-        // If we skip the last segment, what happens?
-        // Usually it just goes to the next one, or stops if end of queue.
 
         const newState: RoomTimerState = {
-            status: 'idle', // Reset to idle for next segment? Or auto-play?
-            // Usually skip means "finish current and go to next"
-            // If we want to auto-play, we'd set it to running.
-            // Let's assume idle for now.
+            status: 'idle',
             currentIndex: nextIndex,
             segmentEndsAt: null,
             remainingSec: 0,
@@ -120,7 +123,12 @@ export class TimerService {
         });
         await this.roomRepo.save(updatedRoom);
 
-        this.eventsBus.publishRoomStateUpdated(updatedRoom);
+        this.eventsBus.publishRoomStateUpdated(updatedRoom, newState);
+
+        // Cancel previous segment's job
+        if (process.env.TIMER_MODE === 'bullmq') {
+            await this.scheduler.cancelSegmentEnd(roomId, room.currentSegmentIndex);
+        }
     }
 
     async getState(roomId: string): Promise<RoomTimerState | null> {

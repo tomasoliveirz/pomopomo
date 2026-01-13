@@ -90,4 +90,32 @@ export class PrismaParticipantRepository implements IParticipantRepository {
             lastSeenAt: data.lastSeenAt,
         });
     }
+
+    async linkGuestToUser(sessionId: string, userId: string): Promise<void> {
+        const guestParticipations = await prisma.participant.findMany({
+            where: { sessionId, userId: null }
+        });
+
+        for (const gp of guestParticipations) {
+            // Check for collision: is this user already capable of being in this room?
+            const existingUser = await prisma.participant.findUnique({
+                where: {
+                    roomId_userId: {
+                        roomId: gp.roomId,
+                        userId
+                    }
+                }
+            });
+
+            if (!existingUser) {
+                // No collision, claim the participant record
+                await prisma.participant.update({
+                    where: { id: gp.id },
+                    data: { userId }
+                });
+            }
+            // If existingUser exists, we do nothing (the user already has a distinct participant record in this room)
+            // Ideally we might merge stats, but that's advanced
+        }
+    }
 }
