@@ -38,7 +38,7 @@ export function handleChatEvents(
 
       // Rate limit check
       await rateLimiter.rateLimitOrThrow(
-        `chat:${actor.actorId}`,
+        `ws:chat:${actor.actorId}`,
         RATE_LIMIT_RULES.ws.chat
       );
 
@@ -86,7 +86,12 @@ export function handleChatEvents(
       }
 
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to send message' });
+      // Propagate generic error with optional retryAfterSec
+      const payload: any = { message: error.message || 'Failed to send message' };
+      if (error.name === 'RateLimitError') {
+        payload.retryAfterSec = error.retryAfterSec;
+      }
+      socket.emit('error', payload);
     }
   });
 }

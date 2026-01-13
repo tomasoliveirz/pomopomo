@@ -78,16 +78,10 @@ export function handleWhiteboardEvents(
             const validatedStroke = strokeSchema.parse(stroke);
 
             // 2. Rate limit check
-            const allowed = await rateLimiter.checkLimit(
-                `whiteboard_draw:${actorId}`,
-                100, // 100 strokes per minute
-                60 * 1000
+            await rateLimiter.rateLimitOrThrow(
+                `ws:whiteboard:${actorId}`,
+                RATE_LIMIT_RULES.ws.whiteboard
             );
-
-            if (!allowed) {
-                socket.emit('error', { message: 'Drawing too fast' });
-                return;
-            }
 
             // 3. Spoofing protection: Overwrite userId with server-side identity
             const strokeWithUser: Stroke = {
@@ -121,7 +115,7 @@ export function handleWhiteboardEvents(
         try {
             const { actor } = socket.data;
             await rateLimiter.rateLimitOrThrow(
-                `whiteboard:${actor.actorId}`,
+                `ws:whiteboard:${actor.actorId}`,
                 RATE_LIMIT_RULES.ws.whiteboard
             );
 

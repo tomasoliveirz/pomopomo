@@ -158,14 +158,16 @@ io.use(async (socket, next) => {
 io.use(async (socket, next) => {
   // Better IP extraction for proxies
   let ip = socket.handshake.address || 'unknown';
-  const forwardedFor = socket.handshake.headers['x-forwarded-for'];
-  if (forwardedFor) {
-    ip = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor.split(',')[0]).trim();
+  if (config.trustProxy) {
+    const forwardedFor = socket.handshake.headers['x-forwarded-for'];
+    if (forwardedFor) {
+      ip = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor.split(',')[0]).trim();
+    }
   }
 
   try {
     // Limit per IP
-    await rateLimiter.rateLimitOrThrow(`ws_connect:ip:${ip}`, RATE_LIMIT_RULES.ws.connect);
+    await rateLimiter.rateLimitOrThrow(`ws:connect:ip:${ip}`, RATE_LIMIT_RULES.ws.connect);
     next();
   } catch (e: any) {
     console.warn(`[RateLimit] Connection rejected for ${ip}`);

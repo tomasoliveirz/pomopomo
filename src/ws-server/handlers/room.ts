@@ -23,7 +23,7 @@ export function handleRoomEvents(
       requireHost(socket);
 
       // Rate limit: 20/min per room for host controls
-      await rateLimiter.rateLimitOrThrow(`room_update:${roomId}`, RATE_LIMIT_RULES.ws.host);
+      await rateLimiter.rateLimitOrThrow(`ws:room:update:${roomId}`, RATE_LIMIT_RULES.ws.host);
 
       if (updateData.theme) {
         await updateRoomPrefsUseCase.execute({
@@ -33,7 +33,9 @@ export function handleRoomEvents(
         });
       }
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to update preferences' });
+      const payload: any = { message: error.message || 'Failed to update preferences' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+      socket.emit('error', payload);
     }
   });
 }

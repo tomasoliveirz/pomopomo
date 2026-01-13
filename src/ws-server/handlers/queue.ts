@@ -23,31 +23,37 @@ export function handleQueueEvents(
     try {
       requireHost(socket);
       // Rate limit: 20 per min per room for timer controls
-      await rateLimiter.rateLimitOrThrow(`timer:${roomId}`, RATE_LIMIT_RULES.ws.host);
+      await rateLimiter.rateLimitOrThrow(`ws:timer:${roomId}`, RATE_LIMIT_RULES.ws.host);
 
       await timerService.start(roomId);
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to play queue' });
+      const payload: any = { message: error.message || 'Failed to play queue' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+      socket.emit('error', payload);
     }
   });
 
   socket.on('queue:pause', async () => {
     try {
       requireHost(socket);
-      await rateLimiter.rateLimitOrThrow(`timer:${roomId}`, RATE_LIMIT_RULES.ws.host);
+      await rateLimiter.rateLimitOrThrow(`ws:timer:${roomId}`, RATE_LIMIT_RULES.ws.host);
       await timerService.pause(roomId);
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to pause queue' });
+      const payload: any = { message: error.message || 'Failed to pause queue' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+      socket.emit('error', payload);
     }
   });
 
   socket.on('queue:skip', async () => {
     try {
       requireHost(socket);
-      await rateLimiter.rateLimitOrThrow(`timer:${roomId}`, RATE_LIMIT_RULES.ws.host);
+      await rateLimiter.rateLimitOrThrow(`ws:timer:${roomId}`, RATE_LIMIT_RULES.ws.host);
       await timerService.skip(roomId);
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to skip segment' });
+      const payload: any = { message: error.message || 'Failed to skip segment' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+      socket.emit('error', payload);
     }
   });
 
@@ -55,7 +61,7 @@ export function handleQueueEvents(
     try {
       requireHost(socket);
       // Host limit
-      await rateLimiter.rateLimitOrThrow(`queue_mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
+      await rateLimiter.rateLimitOrThrow(`ws:queue:mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
 
       await updateQueueUseCase.replaceQueue({
         roomId,
@@ -70,7 +76,9 @@ export function handleQueueEvents(
     } catch (error: any) {
       console.error('queue:replace error', error);
       if (callback) callback(false);
-      socket.emit('error', { message: error.message || 'Failed to replace queue' });
+      const payload: any = { message: error.message || 'Failed to replace queue' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+      socket.emit('error', payload);
     }
   });
 
@@ -78,7 +86,7 @@ export function handleQueueEvents(
     try {
       requireHost(socket);
       // Host limit
-      await rateLimiter.rateLimitOrThrow(`queue_mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
+      await rateLimiter.rateLimitOrThrow(`ws:queue:mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
 
       await updateQueueUseCase.reorderQueue({
         roomId,
@@ -89,7 +97,9 @@ export function handleQueueEvents(
     } catch (error: any) {
       console.error('queue:reorder error', error);
       if (callback) callback(false);
-      socket.emit('error', { message: error.message || 'Failed to reorder queue' });
+      const payload: any = { message: error.message || 'Failed to reorder queue' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+      socket.emit('error', payload);
     }
   });
 
@@ -97,7 +107,7 @@ export function handleQueueEvents(
     try {
       requireHost(socket);
       // Host limit
-      await rateLimiter.rateLimitOrThrow(`queue_mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
+      await rateLimiter.rateLimitOrThrow(`ws:queue:mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
 
       await updateQueueUseCase.addSegment({
         roomId,
@@ -109,7 +119,9 @@ export function handleQueueEvents(
     } catch (error: any) {
       console.error('queue:add error', error);
       if (callback) callback(false);
-      socket.emit('error', { message: error.message || 'Failed to add segment' });
+      const payload: any = { message: error.message || 'Failed to add segment' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+      socket.emit('error', payload);
     }
   });
 }

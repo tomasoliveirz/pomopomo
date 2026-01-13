@@ -25,7 +25,7 @@ export function handleProposalEvents(
     try {
       // Rate limit: 10/min per participant
       const { actor } = socket.data;
-      await rateLimiter.rateLimitOrThrow(`proposal_submit:${actor.actorId}`, RATE_LIMIT_RULES.ws.proposal);
+      await rateLimiter.rateLimitOrThrow(`ws:proposal:submit:${actor.actorId}`, RATE_LIMIT_RULES.ws.proposal);
 
       const validated = submitProposalSchema.parse(proposalData);
 
@@ -39,7 +39,9 @@ export function handleProposalEvents(
       // Broadcast to all (host will filter)
       io.to(roomId).emit('proposal:updated', proposal);
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to submit proposal' });
+      const payload: any = { message: error.message || 'Failed to submit proposal' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+      socket.emit('error', payload);
     }
   });
 
@@ -48,7 +50,7 @@ export function handleProposalEvents(
       requireHost(socket);
 
       // Rate limit: Host control
-      await rateLimiter.rateLimitOrThrow(`proposal_mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
+      await rateLimiter.rateLimitOrThrow(`ws:proposal:mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
 
       const validated = moderateProposalSchema.parse(moderateData);
 
@@ -64,7 +66,10 @@ export function handleProposalEvents(
 
       if (ack) ack(true);
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to moderate proposal' });
+      const payload: any = { message: error.message || 'Failed to moderate proposal' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+
+      socket.emit('error', payload);
       if (ack) ack(false);
     }
   });

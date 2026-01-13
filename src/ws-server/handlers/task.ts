@@ -29,7 +29,7 @@ export function handleTaskEvents(
     try {
       // Rate limit: 10/min per participant
       const { actor } = socket.data;
-      await rateLimiter.rateLimitOrThrow(`task:${actor.actorId}`, RATE_LIMIT_RULES.ws.task);
+      await rateLimiter.rateLimitOrThrow(`ws:task:${actor.actorId}`, RATE_LIMIT_RULES.ws.task);
 
       const validated = setTaskSchema.parse(taskData);
 
@@ -70,7 +70,11 @@ export function handleTaskEvents(
       if (ack) ack(true);
     } catch (error: any) {
       console.error('Error in segment:task:set:', error);
-      socket.emit('error', { message: error.message || 'Failed to set task' });
+      const payload: any = { message: error.message || 'Failed to set task' };
+      if (error.name === 'RateLimitError') {
+        payload.retryAfterSec = error.retryAfterSec;
+      }
+      socket.emit('error', payload);
       if (ack) ack(false);
     }
   });
@@ -80,7 +84,7 @@ export function handleTaskEvents(
     try {
       // Rate limit (shared bucket with new tasks or separate? let's share bucket key)
       const { actor } = socket.data;
-      await rateLimiter.rateLimitOrThrow(`task:${actor.actorId}`, RATE_LIMIT_RULES.ws.task);
+      await rateLimiter.rateLimitOrThrow(`ws:task:${actor.actorId}`, RATE_LIMIT_RULES.ws.task);
 
       const validated = setTaskSchema.parse(taskData);
 
@@ -118,7 +122,9 @@ export function handleTaskEvents(
       }
 
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to set task' });
+      const payload: any = { message: error.message || 'Failed to set task' };
+      if (error.name === 'RateLimitError') payload.retryAfterSec = error.retryAfterSec;
+      socket.emit('error', payload);
     }
   });
 }
