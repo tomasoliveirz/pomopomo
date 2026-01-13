@@ -10,8 +10,9 @@ export async function POST(
 ) {
     try {
         const { code } = params;
+        const normalizedCode = RoomCode.normalize(code);
         const actor = await getActorFromRequest();
-        const roomCode = RoomCode.create(code);
+        const roomCode = RoomCode.create(normalizedCode);
 
         const room = await container.roomRepo.findByCode(roomCode);
         if (!room) {

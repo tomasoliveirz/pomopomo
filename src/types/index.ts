@@ -25,7 +25,7 @@ export interface Segment {
 export interface Room {
   id: string;
   code: string;
-  hostSessionId: string;
+  hostParticipantId: string;
   theme: Theme;
   status: RoomStatus;
   currentSegmentIndex: number;
@@ -138,6 +138,11 @@ export interface ServerEvents {
   'toast': (data: { level: 'info' | 'error' | 'success'; message: string }) => void;
   'error': (data: { message: string; code?: string }) => void;
   'ping': (data: { timestamp: number }) => void;
+  'participant:role_updated': (data: { participantId: string; newRole: string }) => void;
+}
+
+export interface InterServerEvents {
+  'internal:update_role': (participantId: string, newRole: string) => void;
 }
 
 // WebSocket JWT payload

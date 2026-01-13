@@ -2,13 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { container } from '../../container';
 import { createRoomSchema } from '@/lib/validators';
 import { getActorFromRequest } from '@/lib/actor';
+import { config } from '@/infrastructure/config/env';
 
 export async function POST(request: NextRequest) {
   try {
+    const actor = await getActorFromRequest();
+
+    // Rate limit check for room creation
+    const allowed = await container.rateLimiter.checkLimit(
+      `room_create:${actor.actorId}`,
+      5, // Max 5 rooms per window
+      60 * 1000 // 1 minute window
+    );
+
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many room creation requests' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const validated = createRoomSchema.parse(body);
-
-    const actor = await getActorFromRequest();
 
     const { room, host, code: roomCode } = await container.createRoomUseCase.execute({
       theme: validated.theme,

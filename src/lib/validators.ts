@@ -6,7 +6,7 @@ export const createRoomSchema = z.object({
 });
 
 export const joinRoomSchema = z.object({
-  code: z.string().min(6).max(12),
+  code: z.string().min(3).max(12),
   displayName: z.string().min(1).max(50).trim(),
 });
 

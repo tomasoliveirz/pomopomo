@@ -24,7 +24,7 @@ import { UpdateRoomPrefsUseCase } from '../core/application/use-cases/UpdateRoom
 import { SubmitProposalUseCase } from '../core/application/use-cases/SubmitProposalUseCase';
 import { ModerateProposalUseCase } from '../core/application/use-cases/ModerateProposalUseCase';
 import { LeaveRoomUseCase } from '../core/application/use-cases/LeaveRoomUseCase';
-import type { ClientEvents, ServerEvents, WsTokenPayload } from '../types';
+import type { ClientEvents, ServerEvents, InterServerEvents, WsTokenPayload } from '../types';
 
 // Handlers (to be refactored)
 import { handleRoomEvents } from './handlers/room';
@@ -36,22 +36,31 @@ import { handleWhiteboardEvents } from './handlers/whiteboard';
 
 const httpServer = createServer();
 
-const io = new Server<ClientEvents, ServerEvents>(httpServer, {
+const io = new Server<ClientEvents, ServerEvents, InterServerEvents>(httpServer, {
   cors: {
-    origin: '*', // Should be configured via env
+    origin: config.ws.cors.origin,
+    credentials: config.ws.cors.credentials,
     methods: ['GET', 'POST']
   },
   transports: ['websocket', 'polling'],
+  maxHttpBufferSize: 1e6, // 1MB DoS protection
 });
 
-// Setup Redis
-const pubClient = createClient({ url: config.REDIS_URL });
-const subClient = pubClient.duplicate();
+// Mapping for performance
+const participantSockets = new Map<string, Set<Socket>>();
 
-Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
-  io.adapter(createAdapter(pubClient, subClient));
-  console.log('✅ Socket.IO Redis adapter initialized');
+// Handle multi-node role updates
+io.on('internal:update_role', (participantId, newRole) => {
+  const sockets = participantSockets.get(participantId);
+  if (sockets) {
+    for (const socket of sockets) {
+      socket.data.roomRole = newRole;
+      console.log(`🔄 Updated role for ${participantId} to ${newRole} (internal)`);
+    }
+  }
 });
+
+// Setup Redis (moved to startServer)
 
 import { TimerWorker } from '../infrastructure/ws/TimerWorker';
 
@@ -109,16 +118,37 @@ io.use(async (socket, next) => {
   const payload = await authService.verifyToken(token);
   if (!payload) return next(new Error('Invalid token'));
 
-  // 3. Store in socket.data (avoid clobbering)
+  // 4. Ownership check: verify token matches DB participant
+  const participant = await participantRepo.findById(payload.participantId);
+  if (!participant) return next(new Error('Participant not found'));
+
+  // 5. Enforce DB truth: roomId and role must match database
+  if (participant.props.roomId !== payload.roomId) {
+    return next(new Error('Room mismatch'));
+  }
+
+  if (payload.actorType === 'user') {
+    if (!payload.userId) return next(new Error('Invalid token: missing userId'));
+    if (participant.props.userId !== payload.userId) {
+      return next(new Error('Token ownership mismatch (user)'));
+    }
+  } else {
+    if (!payload.sessionId) return next(new Error('Invalid token: missing sessionId'));
+    if (participant.props.sessionId.toString() !== payload.sessionId) {
+      return next(new Error('Token ownership mismatch (guest)'));
+    }
+  }
+
+  // 6. Store in socket.data (avoid clobbering)
   socket.data.actor = {
     actorType: payload.actorType,
     actorId: payload.userId || payload.sessionId,
     sessionId: payload.sessionId,
     userId: payload.userId,
   };
-  socket.data.roomId = payload.roomId;
-  socket.data.participantId = payload.participantId;
-  socket.data.roomRole = payload.role;
+  socket.data.roomId = participant.props.roomId;
+  socket.data.participantId = participant.id;
+  socket.data.roomRole = participant.role; // Always trust DB role
   next();
 });
 
@@ -129,10 +159,26 @@ import { DisconnectManager } from './DisconnectManager';
 const disconnectManager = new DisconnectManager();
 
 io.on('connection', async (socket: Socket) => {
-  const data = (socket as any).data as SocketData;
-  const { roomId, participantId } = data;
+  const { participantId, roomId } = socket.data;
+  const data = socket.data;
 
-  console.log(`✅ Client connected: ${participantId} to room ${roomId}`);
+  // Track socket for role sync
+  if (!participantSockets.has(participantId)) {
+    participantSockets.set(participantId, new Set());
+  }
+  participantSockets.get(participantId)!.add(socket);
+
+  socket.on('disconnect', () => {
+    const sockets = participantSockets.get(participantId);
+    if (sockets) {
+      sockets.delete(socket);
+      if (sockets.size === 0) {
+        participantSockets.delete(participantId);
+      }
+    }
+  });
+
+  console.log(`🔌 Socket connected: ${socket.id} (Participant: ${participantId}, Room: ${roomId})`);
 
   // Register connection with manager
   disconnectManager.onConnect(participantId);
@@ -159,24 +205,41 @@ io.on('connection', async (socket: Socket) => {
       throw new Error('Participant not found');
     }
 
-    // Map entities to DTOs
+    // Map entities to DTOs (Sanitized)
+    const hostParticipant = participants.find(p => p.props.sessionId.equals(room.props.hostSessionId));
+
     const roomDTO = {
-      ...room.props,
+      id: room.id,
       code: room.props.code.toString(),
-      hostSessionId: room.props.hostSessionId.toString(),
+      hostParticipantId: hostParticipant?.id || '',
+      theme: room.props.theme,
+      status: room.props.status,
+      currentSegmentIndex: room.props.currentSegmentIndex,
+      startsAt: room.props.startsAt?.toISOString() || null,
+      createdAt: room.props.createdAt.toISOString(),
+      expiresAt: room.props.expiresAt.toISOString(),
       segments: room.props.segments?.map((s: any) => ({
         ...s.props
       })) || []
     };
 
     const meDTO = {
-      ...me.props,
-      sessionId: me.props.sessionId.toString()
+      id: me.id,
+      displayName: me.displayName,
+      role: me.role,
+      isMuted: me.isMuted,
+      joinedAt: me.props.joinedAt.toISOString(),
+      lastSeenAt: me.props.lastSeenAt.toISOString(),
+      // sessionId is NOT included here unless explicitly needed
     };
 
     const participantsDTO = participants.map((p: any) => ({
-      ...p.props,
-      sessionId: p.props.sessionId.toString()
+      id: p.id,
+      displayName: p.displayName,
+      role: p.role,
+      isMuted: p.isMuted,
+      joinedAt: p.props.joinedAt.toISOString(),
+      lastSeenAt: p.props.lastSeenAt.toISOString()
     }));
 
     const messagesDTO = messages.map((m: any) => ({
@@ -205,7 +268,7 @@ io.on('connection', async (socket: Socket) => {
     handleTaskEvents(io, socket, data, { manageTasksUseCase });
     handleProposalEvents(io, socket, data, { submitProposalUseCase, moderateProposalUseCase });
     handleChatEvents(io, socket, data, { postMessageUseCase, rateLimiter });
-    handleWhiteboardEvents(io, socket, data);
+    handleWhiteboardEvents(io, socket, data, { rateLimiter });
 
     // --- SYNC HANDLER ---
     socket.on('room:request-sync', async () => {
@@ -233,8 +296,23 @@ io.on('connection', async (socket: Socket) => {
   });
 });
 
-const PORT = config.WS_PORT;
-httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 WebSocket server running on port ${PORT}`);
+async function startServer() {
+  // Setup Redis
+  const pubClient = createClient({ url: config.REDIS_URL });
+  const subClient = pubClient.duplicate();
+
+  await Promise.all([pubClient.connect(), subClient.connect()]);
+  io.adapter(createAdapter(pubClient, subClient));
+  console.log('✅ Socket.IO Redis adapter initialized');
+
+  const PORT = config.WS_PORT;
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 WebSocket server running on port ${PORT}`);
+  });
+}
+
+startServer().catch(err => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });
 

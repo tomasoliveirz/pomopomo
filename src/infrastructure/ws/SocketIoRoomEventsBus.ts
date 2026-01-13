@@ -3,10 +3,10 @@ import { IRoomEventsBus } from '@core/application/ports/IRoomEventsBus';
 import { Room } from '@core/domain/entities/Room';
 import { Participant } from '@core/domain/entities/Participant';
 import { Segment } from '@core/domain/entities/Segment';
-import { ServerEvents, RoomStatus } from '@/types'; // Legacy types for compatibility
+import { ServerEvents, InterServerEvents, RoomStatus } from '@/types'; // Legacy types for compatibility
 
 export class SocketIoRoomEventsBus implements IRoomEventsBus {
-    constructor(private io: Server<any, ServerEvents>) { }
+    constructor(private io: Server<any, ServerEvents, InterServerEvents>) { }
 
     publishRoomCreated(room: Room): void {
         // Room creation is usually a request-response flow, but we can broadcast if needed
@@ -49,6 +49,14 @@ export class SocketIoRoomEventsBus implements IRoomEventsBus {
         this.io.to(roomId).emit('participants:updated', {
             list: participants.map(this.mapParticipantToDto)
         });
+    }
+
+    publishParticipantRoleUpdated(roomId: string, participantId: string, newRole: string): void {
+        // 1. Broadcast to all clients in the room
+        this.io.to(roomId).emit('participant:role_updated', { participantId, newRole });
+
+        // 2. Broadcast to all server nodes to update their local socket.data
+        this.io.serverSideEmit('internal:update_role', participantId, newRole);
     }
 
     private mapParticipantToDto(p: Participant) {

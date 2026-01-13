@@ -7,12 +7,15 @@ import { CreateRoomUseCase } from '../core/application/use-cases/CreateRoomUseCa
 
 import { JoinRoomUseCase } from '../core/application/use-cases/JoinRoomUseCase';
 
+import { RedisRateLimiter } from '../infrastructure/cache/RedisRateLimiter';
+
 // Singletons
 const roomRepo = new PrismaRoomRepository();
 const participantRepo = new PrismaParticipantRepository();
 const nullEventsBus = new NullRoomEventsBus();
 const clock = new SystemClock();
 const authService = new JwtAuthService();
+const rateLimiter = new RedisRateLimiter();
 
 // Use Cases
 const createRoomUseCase = new CreateRoomUseCase(
@@ -35,5 +38,6 @@ export const container = {
     joinRoomUseCase,
     authService,
     roomRepo,
-    participantRepo
+    participantRepo,
+    rateLimiter
 };

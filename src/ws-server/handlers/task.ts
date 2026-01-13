@@ -13,12 +13,12 @@ interface SocketData {
 export function handleTaskEvents(
   io: Server<ClientEvents, ServerEvents>,
   socket: Socket,
-  data: SocketData,
+  data: any,
   dependencies: {
     manageTasksUseCase: ManageTasksUseCase;
   }
 ) {
-  const { roomId, participantId, payload } = data;
+  const { roomId, participantId } = socket.data;
   const { manageTasksUseCase } = dependencies;
 
   // New handler for segment:task:set with support for proposals
@@ -32,7 +32,7 @@ export function handleTaskEvents(
         participantId,
         text: validated.text,
         visibility: validated.visibility as Visibility,
-        role: payload.role,
+        role: socket.data.roomRole,
       });
 
       if (result.task) {
@@ -79,7 +79,7 @@ export function handleTaskEvents(
         participantId,
         text: validated.text,
         visibility: validated.visibility as Visibility,
-        role: payload.role,
+        role: socket.data.roomRole,
       });
 
       if (result.task) {

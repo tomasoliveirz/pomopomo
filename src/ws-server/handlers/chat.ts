@@ -21,13 +21,13 @@ function containsBadWords(text: string): boolean {
 export function handleChatEvents(
   io: Server<ClientEvents, ServerEvents>,
   socket: Socket,
-  data: SocketData,
+  data: any,
   dependencies: {
     postMessageUseCase: PostMessageUseCase;
-    rateLimiter: RedisRateLimiter; // Inject rate limiter directly or via port
+    rateLimiter: RedisRateLimiter;
   }
 ) {
-  const { roomId, participantId } = data;
+  const { roomId, participantId } = socket.data;
   const { postMessageUseCase, rateLimiter } = dependencies;
 
   socket.on('chat:send', async (chatData) => {
@@ -35,7 +35,8 @@ export function handleChatEvents(
       const validated = sendChatSchema.parse(chatData);
 
       // Rate limit check
-      const rateLimitKey = `chat:${participantId}`;
+      const { actor } = socket.data;
+      const rateLimitKey = `chat:${actor.actorId}`;
       const allowed = await rateLimiter.checkLimit(
         rateLimitKey,
         config.rateLimit.chat.maxMessages,

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { container } from '@/app/container';
 import { joinRoomSchema } from '@/lib/validators';
 import { getActorFromRequest } from '@/lib/actor';
+import { config } from '@/infrastructure/config/env';
+import { RoomCode } from '@/core/domain/value-objects/RoomCode';
 
 export async function POST(
   request: NextRequest,
@@ -9,14 +11,29 @@ export async function POST(
 ) {
   try {
     const { code } = params;
-    const body = await request.json();
-    const validated = joinRoomSchema.parse({ ...body, code });
-
+    const normalizedCode = RoomCode.normalize(code);
     const actor = await getActorFromRequest();
+
+    // Rate limit check for join room
+    const allowed = await container.rateLimiter.checkLimit(
+      `room_join:${actor.actorId}`,
+      10, // Max 10 joins per window
+      60 * 1000 // 1 minute window
+    );
+
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many join requests' },
+        { status: 429 }
+      );
+    }
+
+    const body = await request.json();
+    const validated = joinRoomSchema.parse({ ...body, code: normalizedCode });
 
     // Execute Use Case
     const { room, participant, token } = await container.joinRoomUseCase.execute({
-      code,
+      code: normalizedCode,
       sessionId: actor.sessionId,
       userId: actor.actorType === 'user' ? actor.userId : null,
       displayName: validated.displayName

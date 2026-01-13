@@ -4,23 +4,18 @@ import { ModerateProposalUseCase } from '../../core/application/use-cases/Modera
 import { submitProposalSchema, moderateProposalSchema } from '../../lib/validators';
 import type { ClientEvents, ServerEvents } from '../../types';
 import { ProposalType, ProposalStatus } from '../../core/domain/types';
-
-interface SocketData {
-  payload: any;
-  roomId: string;
-  participantId: string;
-}
+import { requireHost } from '../guards';
 
 export function handleProposalEvents(
   io: Server<ClientEvents, ServerEvents>,
   socket: Socket,
-  data: SocketData,
+  data: any,
   dependencies: {
     submitProposalUseCase: SubmitProposalUseCase;
     moderateProposalUseCase: ModerateProposalUseCase;
   }
 ) {
-  const { roomId, participantId, payload } = data;
+  const { roomId, participantId } = socket.data;
   const { submitProposalUseCase, moderateProposalUseCase } = dependencies;
 
   socket.on('proposal:submit', async (proposalData) => {
@@ -43,12 +38,13 @@ export function handleProposalEvents(
 
   socket.on('proposal:moderate', async (moderateData, ack) => {
     try {
+      requireHost(socket);
       const validated = moderateProposalSchema.parse(moderateData);
 
       const proposal = await moderateProposalUseCase.execute({
         id: validated.id,
         roomId,
-        role: payload.role,
+        role: socket.data.roomRole,
         decision: validated.decision as ProposalStatus,
       });
 

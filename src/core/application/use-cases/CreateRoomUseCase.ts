@@ -31,57 +31,65 @@ export class CreateRoomUseCase {
     ) { }
 
     async execute(input: CreateRoomInput): Promise<CreateRoomOutput> {
-        const codeStr = this.generateRoomCode();
-        const code = RoomCode.create(codeStr);
         const sessionId = SessionId.create(input.hostSessionId);
         const now = this.clock.now();
         const expiresAt = new Date(now.getTime() + 72 * 60 * 60 * 1000); // 72 hours TTL
 
-        const room = new Room({
-            id: uuidv4(),
-            code: code,
-            hostSessionId: sessionId,
-            hostUserId: input.hostUserId,
-            theme: input.theme || 'lofi_girl',
-            status: 'idle',
-            currentSegmentIndex: 0,
-            createdAt: now,
-            expiresAt: expiresAt,
-            segments: [], // Default segments would be added here or in a separate step
-            participants: []
-        });
+        let attempts = 0;
+        const MAX_ATTEMPTS = 10;
 
-        const host = new Participant({
-            id: uuidv4(),
-            roomId: room.id,
-            sessionId: sessionId,
-            userId: input.hostUserId,
-            displayName: input.hostName || 'Host',
-            role: 'host',
-            isMuted: false,
-            joinedAt: now,
-            lastSeenAt: now
-        });
+        while (attempts < MAX_ATTEMPTS) {
+            try {
+                const code = RoomCode.generate();
 
-        await this.roomRepo.save(room);
-        await this.participantRepo.save(host);
+                const room = new Room({
+                    id: uuidv4(),
+                    code: code,
+                    hostSessionId: sessionId,
+                    hostUserId: input.hostUserId,
+                    theme: input.theme || 'lofi_girl',
+                    status: 'idle',
+                    currentSegmentIndex: 0,
+                    createdAt: now,
+                    expiresAt: expiresAt,
+                    segments: [],
+                    participants: []
+                });
 
-        this.eventsBus.publishRoomCreated(room);
+                const host = new Participant({
+                    id: uuidv4(),
+                    roomId: room.id,
+                    sessionId: sessionId,
+                    userId: input.hostUserId,
+                    displayName: input.hostName || 'Host',
+                    role: 'host',
+                    isMuted: false,
+                    joinedAt: now,
+                    lastSeenAt: now
+                });
 
-        return {
-            room,
-            host,
-            code: code.toString()
-        };
-    }
+                // Transactional save would be ideal, but for now sequential
+                await this.roomRepo.save(room);
+                await this.participantRepo.save(host);
 
-    private generateRoomCode(): string {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let code = 'pomo-';
-        for (let i = 0; i < 4; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
+                this.eventsBus.publishRoomCreated(room);
+
+                return {
+                    room,
+                    host,
+                    code: code.toString()
+                };
+            } catch (e: any) {
+                // Handle Prisma unique constraint violation on 'code'
+                if (e.code === 'P2002') {
+                    attempts++;
+                    continue;
+                }
+                throw e;
+            }
         }
-        return code;
+
+        throw new Error('Failed to allocate unique room code');
     }
 }
 
