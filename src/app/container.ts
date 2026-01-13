@@ -7,7 +7,7 @@ import { CreateRoomUseCase } from '../core/application/use-cases/CreateRoomUseCa
 
 import { JoinRoomUseCase } from '../core/application/use-cases/JoinRoomUseCase';
 
-import { RedisRateLimiter } from '../infrastructure/cache/RedisRateLimiter';
+import { RedisRateLimiter } from '../infrastructure/security/rateLimit/RedisRateLimiter';
 
 // Singletons
 const roomRepo = new PrismaRoomRepository();

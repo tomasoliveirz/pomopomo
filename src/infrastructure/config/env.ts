@@ -72,4 +72,6 @@ export const config = {
             credentials: true,
         },
     },
+    trustProxy: process.env.TRUST_PROXY === 'true', // Added for socket.io
+},
 };

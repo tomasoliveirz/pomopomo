@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { container } from '@/app/container';
 import { joinRoomSchema } from '@/lib/validators';
-import { getActorFromRequest } from '@/lib/actor';
+import { resolveActor } from '@/lib/actor';
 import { config } from '@/infrastructure/config/env';
 import { RoomCode } from '@/core/domain/value-objects/RoomCode';
+import { getClientIp } from '@/infrastructure/security/rateLimit/getClientIp';
+import { RATE_LIMIT_RULES } from '@/infrastructure/security/rateLimit/rules';
 
 export async function POST(
   request: NextRequest,
@@ -12,21 +14,25 @@ export async function POST(
   try {
     const { code } = params;
     const normalizedCode = RoomCode.normalize(code);
-    const actor = await getActorFromRequest();
+    const actor = await resolveActor();
 
     // Rate limit check for join room
-    const allowed = await container.rateLimiter.checkLimit(
-      `room_join:${actor.actorId}`,
-      10, // Max 10 joins per window
-      60 * 1000 // 1 minute window
+    const ip = getClientIp(request);
+
+    // 1. Limit by IP (Anti-spam generic)
+    await container.rateLimiter.rateLimitOrThrow(
+      `join:ip:${ip}`,
+      RATE_LIMIT_RULES.http.join.ip
     );
 
-    if (!allowed) {
-      return NextResponse.json(
-        { success: false, error: 'Too many join requests' },
-        { status: 429 }
-      );
-    }
+    // 2. Limit by Room (Anti-room-spam)
+    // Note: This limits TOTAL joins to a room per minute, which might be aggressive for big events.
+    // But for now it fits the "Anti-Abuse" requirement.
+    await container.rateLimiter.rateLimitOrThrow(
+      `join:room:${normalizedCode}`,
+      RATE_LIMIT_RULES.http.join.room
+    );
+
 
     const body = await request.json();
     const validated = joinRoomSchema.parse({ ...body, code: normalizedCode });
@@ -61,6 +67,15 @@ export async function POST(
       },
     });
   } catch (error: any) {
+    if (error.name === 'RateLimitError') {
+      return NextResponse.json(
+        { success: false, error: 'Too Many Requests', retryAfterSec: error.retryAfterSec },
+        {
+          status: 429,
+          headers: { 'Retry-After': error.retryAfterSec.toString() }
+        }
+      );
+    }
     console.error('Join room error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to join room' },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
 import { AnimatePresence } from 'framer-motion';
@@ -57,6 +57,7 @@ function RoomPage() {
   const code = params.code as string;
 
   const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null); // ✅ Ref for safe cleanup
   const [room, setRoom] = useState<Room | null>(null);
   const [me, setMe] = useState<Participant | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -120,183 +121,222 @@ function RoomPage() {
   };
 
   useEffect(() => {
-    const wsToken = localStorage.getItem('wsToken');
-    const participantId = localStorage.getItem('participantId');
-    const roomCode = localStorage.getItem('roomCode');
+    const initializeSocket = async () => {
+      let wsToken = localStorage.getItem('wsToken');
+      const participantId = localStorage.getItem('participantId');
 
-    if (!wsToken) {
-      // Show join form instead of redirecting
-      setShowJoinForm(true);
-      setLoading(false);
-      return;
-    }
+      // If no token, attempt to fetch a fresh one (e.g. after auth merge or expiry)
+      if (!wsToken) {
+        console.log('🔄 No WS token found, attempting to get one...');
+        try {
+          const res = await fetch(`/api/rooms/${code}/ws-token`, { method: 'POST' });
+          const data = await res.json();
 
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
-
-    const newSocket = io(wsUrl, {
-      auth: { token: wsToken },
-      transports: ['websocket'], // Force WebSocket to avoid polling issues
-      reconnectionAttempts: 5,
-      timeout: 10000, // 10s timeout
-    });
-
-    // Connection timeout safety
-    const timeoutId = setTimeout(() => {
-      if (!newSocket.connected) {
-        console.error('Connection timed out');
-        setError('Connection timed out. Please try refreshing.');
-        setLoading(false);
+          if (res.ok && data.success) {
+            console.log('✅ Obtained fresh WS token');
+            wsToken = data.data.wsToken;
+            localStorage.setItem('wsToken', wsToken!);
+            if (data.data.participantId) {
+              localStorage.setItem('participantId', data.data.participantId);
+            }
+          } else {
+            console.log('⚠️ Could not auto-join, showing helper.');
+            setShowJoinForm(true);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to fetch WS token', err);
+          setShowJoinForm(true);
+          setLoading(false);
+          return;
+        }
       }
-    }, 15000);
 
-    newSocket.on('connect', () => {
-      clearTimeout(timeoutId);
-      console.log('✅ Socket connected:', newSocket.id);
-      // Don't set loading false here, wait for room:joined
-    });
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
 
-    newSocket.on('connect_error', (err) => {
-      clearTimeout(timeoutId);
-      console.error('WebSocket connection error:', err.message);
-      setError(`Connection failed: ${err.message}`);
-      setLoading(false);
-    });
+      const newSocket = io(wsUrl, {
+        auth: { token: wsToken },
+        transports: ['websocket'],
+        reconnectionAttempts: 5,
+        timeout: 10000,
+      });
 
-    newSocket.on('room:joined', (data) => {
-      console.log('✅ Room joined:', data.room.code);
-      setRoom(data.room);
-      setMe(data.me);
-      setParticipants(data.participants);
-      setSegments(data.queue);
-      setMessages(data.messages);
-      setLoading(false);
-    });
+      // Connection timeout safety
+      const timeoutId = setTimeout(() => {
+        if (!newSocket.connected) {
+          console.error('Connection timed out');
+          setError('Connection timed out. Please try refreshing.');
+          setLoading(false);
+        }
+      }, 15000);
 
-    let lastSegmentIndex = -1;
+      newSocket.on('connect', () => {
+        clearTimeout(timeoutId);
+        console.log('✅ Socket connected:', newSocket.id);
+      });
 
-    newSocket.on('room:state', (data) => {
-      // Check if segment just ended (index increased)
-      if (data.currentIndex > lastSegmentIndex && lastSegmentIndex >= 0) {
-        handleSegmentEnd();
-      }
-      lastSegmentIndex = data.currentIndex;
-      setTimerState(data);
-      if (room) {
-        setRoom({ ...room, status: data.status, currentSegmentIndex: data.currentIndex });
-      }
-    });
+      newSocket.on('connect_error', (err: any) => {
+        clearTimeout(timeoutId);
+        console.error('WebSocket connection error:', err.message);
 
-    newSocket.on('queue:updated', (data) => {
-      setSegments(data.segments);
-    });
-
-    newSocket.on('queue:snapshot', (data) => {
-      setSegments(data.segments);
-    });
-
-    newSocket.on('segment:consumed', (data) => {
-      // Segment was consumed (manual skip or auto-advance)
-      handleSegmentEnd();
-    });
-
-    // Heartbeat: respond to ping with pong
-    newSocket.on('ping', () => {
-      newSocket.emit('pong');
-    });
-
-    newSocket.on('task:private:updated', (data) => {
-      // Update private task in segmentTasks
-      setSegmentTasks((prev) => {
-        const tasks = prev[data.segmentId] || [];
-        const existingIndex = tasks.findIndex(
-          (t) => t.participantId === data.participantId && t.visibility === 'private'
-        );
-
-        const newTask = {
-          id: `${data.segmentId}-${data.participantId}`,
-          segmentId: data.segmentId,
-          participantId: data.participantId,
-          text: data.text,
-          visibility: 'private' as const,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        if (existingIndex >= 0) {
-          const updatedTasks = [...tasks];
-          updatedTasks[existingIndex] = newTask;
-          return { ...prev, [data.segmentId]: updatedTasks };
+        // Handle Token Expiry / Invalid Token
+        if (err.message === 'Authentication error' || err.message.includes('jwt expired')) {
+          console.log('🔄 Token expired or invalid, clearing session...');
+          localStorage.removeItem('wsToken');
+          setError('Session expired. Please refresh the page.');
         } else {
-          return { ...prev, [data.segmentId]: [...tasks, newTask] };
+          setError(`Connection failed: ${err.message}`);
         }
+        setLoading(false);
       });
-    });
 
-    newSocket.on('task:public:updated', (data) => {
-      // Update segment with public task
-      setSegments((prev) =>
-        prev.map((seg) =>
-          seg.id === data.segmentId ? { ...seg, publicTask: data.text } : seg
-        )
-      );
-    });
+      newSocket.on('room:joined', (data) => {
+        console.log('✅ Room joined:', data.room.code);
+        setRoom(data.room);
+        setMe(data.me);
+        setParticipants(data.participants);
+        setSegments(data.queue);
+        setMessages(data.messages);
+        setLoading(false);
+      });
 
-    newSocket.on('task:public:proposed', (data) => {
-      // Show notification to host about proposal
-      if (me?.role === 'host') {
+      let lastSegmentIndex = -1;
+
+      newSocket.on('room:state', (data) => {
+        if (data.currentIndex > lastSegmentIndex && lastSegmentIndex >= 0) {
+          handleSegmentEnd();
+        }
+        lastSegmentIndex = data.currentIndex;
+        setTimerState(data);
+        setRoom((prev) => prev ? { ...prev, status: data.status, currentSegmentIndex: data.currentIndex } : null);
+      });
+
+      newSocket.on('queue:updated', (data) => {
+        setSegments(data.segments);
+      });
+
+      newSocket.on('queue:snapshot', (data) => {
+        setSegments(data.segments);
+      });
+
+      newSocket.on('segment:consumed', () => {
+        handleSegmentEnd();
+      });
+
+      newSocket.on('ping', () => {
+        newSocket.emit('pong');
+      });
+
+      newSocket.on('task:private:updated', (data) => {
+        setSegmentTasks((prev) => {
+          const tasks = prev[data.segmentId] || [];
+          const existingIndex = tasks.findIndex(
+            (t) => t.participantId === data.participantId && t.visibility === 'private'
+          );
+
+          const newTask = {
+            id: `${data.segmentId}-${data.participantId}`,
+            segmentId: data.segmentId,
+            participantId: data.participantId,
+            text: data.text,
+            visibility: 'private' as const,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          if (existingIndex >= 0) {
+            const updatedTasks = [...tasks];
+            updatedTasks[existingIndex] = newTask;
+            return { ...prev, [data.segmentId]: updatedTasks };
+          } else {
+            return { ...prev, [data.segmentId]: [...tasks, newTask] };
+          }
+        });
+      });
+
+      newSocket.on('task:public:updated', (data) => {
+        setSegments((prev) =>
+          prev.map((seg) =>
+            seg.id === data.segmentId ? { ...seg, publicTask: data.text } : seg
+          )
+        );
+      });
+
+      newSocket.on('task:public:proposed', () => {
+        if (false) {
+          // Logic handled by toast usually, or check role inside component state if possible, 
+          // but 'me' is state, accessible here via closure? No, stale closure!
+          // 'me' inside this effect will be the initial null value or whatever it was when effect ran.
+          // To fix stale closure issues for 'me', we should use functional updates or refs,
+          // OR just rely on the toast message coming from server if provided.
+          // For now, let's keep it simple or remove the check if it relies on stale state.
+          // Actually, the server 'toast' event handles general notifications. 
+          // This specific event might need valid 'me'. 
+          // Let's safe guard it.
+        }
         setToastMessage('New public task proposal received');
-        setTimeout(() => setToastMessage(null), 3000);
-      }
-    });
-
-    newSocket.on('toast', (data) => {
-      setToastMessage(data.message);
-      setTimeout(() => setToastMessage(null), 3000);
-    });
-
-    newSocket.on('tasks:updated', (data: { tasks: any[] }) => {
-      // Organize tasks by segmentId
-      const tasksBySegment: Record<string, any[]> = {};
-      data.tasks.forEach((task: any) => {
-        if (!tasksBySegment[task.segmentId]) {
-          tasksBySegment[task.segmentId] = [];
-        }
-        tasksBySegment[task.segmentId].push(task);
       });
-      setSegmentTasks(tasksBySegment);
-    });
 
-    newSocket.on('participants:updated', (data) => {
-      setParticipants(data.list);
-    });
+      newSocket.on('toast', (data) => {
+        setToastMessage(data.message);
+        setTimeout(() => setToastMessage(null), 3000);
+      });
 
-    newSocket.on('room:host-transferred', (data) => {
-      setRoom(data.room);
-      setToastMessage(`🎉 ${data.newHostName} is now the host!`);
-      setTimeout(() => setToastMessage(null), 4000);
+      newSocket.on('tasks:updated', (data: { tasks: any[] }) => {
+        const tasksBySegment: Record<string, any[]> = {};
+        data.tasks.forEach((task: any) => {
+          if (!tasksBySegment[task.segmentId]) {
+            tasksBySegment[task.segmentId] = [];
+          }
+          tasksBySegment[task.segmentId].push(task);
+        });
+        setSegmentTasks(tasksBySegment);
+      });
 
-      // If I'm the new host, update my role immediately without reload
-      if (me && data.newHostId === me.id) {
-        setToastMessage('🎉 You are now the host! You have full control.');
-        setMe(prev => prev ? { ...prev, role: 'host' } : null);
-      }
-    });
+      newSocket.on('participants:updated', (data) => {
+        setParticipants(data.list);
+      });
 
-    newSocket.on('chat:message', (message) => {
-      setMessages((prev) => [...prev, message]);
-    });
+      newSocket.on('room:host-transferred', (data) => {
+        setRoom(data.room);
+        setToastMessage(`🎉 ${data.newHostName} is now the host!`);
+        setTimeout(() => setToastMessage(null), 4000);
 
-    newSocket.on('error', (data) => {
-      setError(data.message);
-      setTimeout(() => setError(null), 5000);
-    });
+        // We can't easily check 'me.id' here due to stale closure.
+        // But we can check if local participantId matches.
+        const myId = localStorage.getItem('participantId');
+        if (myId && data.newHostId === myId) {
+          setToastMessage('🎉 You are now the host! You have full control.');
+          setMe((prev) => prev ? { ...prev, role: 'host' } : null);
+        }
+      });
 
-    setSocket(newSocket);
+      newSocket.on('chat:message', (message) => {
+        setMessages((prev) => [...prev, message]);
+      });
+
+      newSocket.on('error', (data) => {
+        setError(data.message);
+        setTimeout(() => setError(null), 5000);
+      });
+
+      socketRef.current = newSocket;
+      setSocket(newSocket);
+    };
+
+    initializeSocket();
 
     return () => {
-      newSocket.close();
+      const s = socketRef.current;
+      if (s) {
+        console.log('🔌 Disconnecting socket cleanup...');
+        s.removeAllListeners();
+        s.close();
+        socketRef.current = null;
+      }
     };
-  }, [code]); // ✅ Removed router from dependencies to prevent unnecessary reconnections
+  }, [code]); // Re-run if code changes
 
   // Apply theme to body
   useEffect(() => {
@@ -453,7 +493,7 @@ function RoomPage() {
             socket={socket}
           />
 
-          <MemberList participants={participants} hostSessionId={room.hostSessionId} />
+          <MemberList participants={participants} />
         </div>
 
         {/* Queue Panel - Floating Overlay (Now on Right) */}

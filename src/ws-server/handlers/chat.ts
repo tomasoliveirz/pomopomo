@@ -3,7 +3,8 @@ import { PostMessageUseCase } from '../../core/application/use-cases/PostMessage
 import { sendChatSchema } from '../../lib/validators';
 import { config } from '../../infrastructure/config/env';
 import type { ClientEvents, ServerEvents } from '../../types';
-import { RedisRateLimiter } from '../../infrastructure/cache/RedisRateLimiter';
+import { RedisRateLimiter } from '../../infrastructure/security/rateLimit/RedisRateLimiter';
+import { RATE_LIMIT_RULES } from '../../infrastructure/security/rateLimit/rules';
 
 interface SocketData {
   payload: any;
@@ -33,21 +34,13 @@ export function handleChatEvents(
   socket.on('chat:send', async (chatData) => {
     try {
       const validated = sendChatSchema.parse(chatData);
+      const { actor } = socket.data;
 
       // Rate limit check
-      const { actor } = socket.data;
-      const rateLimitKey = `chat:${actor.actorId}`;
-      const allowed = await rateLimiter.checkLimit(
-        rateLimitKey,
-        config.rateLimit.chat.maxMessages,
-        config.rateLimit.chat.windowSec * 1000
+      await rateLimiter.rateLimitOrThrow(
+        `chat:${actor.actorId}`,
+        RATE_LIMIT_RULES.ws.chat
       );
-
-      if (!allowed) {
-        socket.emit('error', { message: 'You are sending messages too fast' });
-        // TODO: Auto-mute logic should be in a Use Case or Service
-        return;
-      }
 
       // Check for bad words
       const isShadowHidden = containsBadWords(validated.text);

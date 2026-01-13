@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { container } from '@/app/container';
-import { getActorFromRequest } from '@/lib/actor';
+import { resolveActor } from '@/lib/actor';
 import { RoomCode } from '@/core/domain/value-objects/RoomCode';
 import { Participant } from '@/core/domain/entities/Participant';
+import { getClientIp } from '@/infrastructure/security/rateLimit/getClientIp';
+import { RATE_LIMIT_RULES } from '@/infrastructure/security/rateLimit/rules';
 
 export async function POST(
     request: NextRequest,
@@ -11,8 +13,15 @@ export async function POST(
     try {
         const { code } = params;
         const normalizedCode = RoomCode.normalize(code);
-        const actor = await getActorFromRequest();
+        const actor = await resolveActor();
         const roomCode = RoomCode.create(normalizedCode);
+        const ip = getClientIp(request);
+
+        // Rate limit: 20 req/min per IP
+        await container.rateLimiter.rateLimitOrThrow(
+            `ws_token:ip:${ip}`,
+            RATE_LIMIT_RULES.http.wsToken.ip
+        );
 
         const room = await container.roomRepo.findByCode(roomCode);
         if (!room) {
@@ -62,6 +71,15 @@ export async function POST(
             }
         });
     } catch (error: any) {
+        if (error.name === 'RateLimitError') {
+            return NextResponse.json(
+                { success: false, error: 'Too Many Requests', retryAfterSec: error.retryAfterSec },
+                {
+                    status: 429,
+                    headers: { 'Retry-After': error.retryAfterSec.toString() }
+                }
+            );
+        }
         console.error('WS token error:', error);
         return NextResponse.json(
             { success: false, error: error.message || 'Failed to generate WS token' },

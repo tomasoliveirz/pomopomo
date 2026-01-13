@@ -3,6 +3,8 @@ import { ManageTasksUseCase } from '../../core/application/use-cases/ManageTasks
 import { setTaskSchema } from '../../lib/validators';
 import type { ClientEvents, ServerEvents } from '../../types';
 import { Visibility } from '../../core/domain/types';
+import { RedisRateLimiter } from '../../infrastructure/security/rateLimit/RedisRateLimiter';
+import { RATE_LIMIT_RULES } from '../../infrastructure/security/rateLimit/rules';
 
 interface SocketData {
   payload: any;
@@ -16,14 +18,19 @@ export function handleTaskEvents(
   data: any,
   dependencies: {
     manageTasksUseCase: ManageTasksUseCase;
+    rateLimiter: RedisRateLimiter;
   }
 ) {
   const { roomId, participantId } = socket.data;
-  const { manageTasksUseCase } = dependencies;
+  const { manageTasksUseCase, rateLimiter } = dependencies;
 
   // New handler for segment:task:set with support for proposals
   socket.on('segment:task:set', async (taskData, ack) => {
     try {
+      // Rate limit: 10/min per participant
+      const { actor } = socket.data;
+      await rateLimiter.rateLimitOrThrow(`task:${actor.actorId}`, RATE_LIMIT_RULES.ws.task);
+
       const validated = setTaskSchema.parse(taskData);
 
       const result = await manageTasksUseCase.execute({
@@ -71,6 +78,10 @@ export function handleTaskEvents(
   // Keep old task:set for backward compatibility
   socket.on('task:set', async (taskData) => {
     try {
+      // Rate limit (shared bucket with new tasks or separate? let's share bucket key)
+      const { actor } = socket.data;
+      await rateLimiter.rateLimitOrThrow(`task:${actor.actorId}`, RATE_LIMIT_RULES.ws.task);
+
       const validated = setTaskSchema.parse(taskData);
 
       const result = await manageTasksUseCase.execute({

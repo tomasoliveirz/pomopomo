@@ -2,7 +2,8 @@ import { Server, Socket } from 'socket.io';
 import { ClientEvents, ServerEvents, Stroke } from '../../types';
 import { requireHost } from '../guards';
 import { z } from 'zod';
-import { RedisRateLimiter } from '../../infrastructure/cache/RedisRateLimiter';
+import { RedisRateLimiter } from '../../infrastructure/security/rateLimit/RedisRateLimiter';
+import { RATE_LIMIT_RULES } from '../../infrastructure/security/rateLimit/rules';
 
 const strokeSchema = z.object({
     id: z.string().uuid(),
@@ -118,17 +119,11 @@ export function handleWhiteboardEvents(
         if (targetRoomId !== roomId) return;
 
         try {
-            // Rate limit check for erasing
-            const allowed = await rateLimiter.checkLimit(
-                `whiteboard_erase:${actorId}`,
-                50, // 50 erasures per minute
-                60 * 1000
+            const { actor } = socket.data;
+            await rateLimiter.rateLimitOrThrow(
+                `whiteboard:${actor.actorId}`,
+                RATE_LIMIT_RULES.ws.whiteboard
             );
-
-            if (!allowed) {
-                socket.emit('error', { message: 'Erasing too fast' });
-                return;
-            }
 
             if (roomWhiteboards[roomId]) {
                 const state = roomWhiteboards[roomId];

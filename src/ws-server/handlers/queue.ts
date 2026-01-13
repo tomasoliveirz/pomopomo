@@ -3,6 +3,8 @@ import { TimerService } from '../../core/application/use-cases/TimerService';
 import { UpdateQueueUseCase } from '../../core/application/use-cases/UpdateQueueUseCase';
 import type { ClientEvents, ServerEvents } from '../../types';
 import { requireHost } from '../guards';
+import { RedisRateLimiter } from '../../infrastructure/security/rateLimit/RedisRateLimiter';
+import { RATE_LIMIT_RULES } from '../../infrastructure/security/rateLimit/rules';
 
 export function handleQueueEvents(
   io: Server<ClientEvents, ServerEvents>,
@@ -11,14 +13,18 @@ export function handleQueueEvents(
   dependencies: {
     timerService: TimerService;
     updateQueueUseCase: UpdateQueueUseCase;
+    rateLimiter: RedisRateLimiter;
   }
 ) {
   const { roomId } = socket.data;
-  const { timerService, updateQueueUseCase } = dependencies;
+  const { timerService, updateQueueUseCase, rateLimiter } = dependencies;
 
   socket.on('queue:play', async (playData) => {
     try {
       requireHost(socket);
+      // Rate limit: 20 per min per room for timer controls
+      await rateLimiter.rateLimitOrThrow(`timer:${roomId}`, RATE_LIMIT_RULES.ws.host);
+
       await timerService.start(roomId);
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to play queue' });
@@ -28,6 +34,7 @@ export function handleQueueEvents(
   socket.on('queue:pause', async () => {
     try {
       requireHost(socket);
+      await rateLimiter.rateLimitOrThrow(`timer:${roomId}`, RATE_LIMIT_RULES.ws.host);
       await timerService.pause(roomId);
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to pause queue' });
@@ -37,6 +44,7 @@ export function handleQueueEvents(
   socket.on('queue:skip', async () => {
     try {
       requireHost(socket);
+      await rateLimiter.rateLimitOrThrow(`timer:${roomId}`, RATE_LIMIT_RULES.ws.host);
       await timerService.skip(roomId);
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to skip segment' });
@@ -46,6 +54,9 @@ export function handleQueueEvents(
   socket.on('queue:replace', async (data, callback) => {
     try {
       requireHost(socket);
+      // Host limit
+      await rateLimiter.rateLimitOrThrow(`queue_mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
+
       await updateQueueUseCase.replaceQueue({
         roomId,
         segments: data.segments.map(s => ({
@@ -66,6 +77,9 @@ export function handleQueueEvents(
   socket.on('queue:reorder', async (data, callback) => {
     try {
       requireHost(socket);
+      // Host limit
+      await rateLimiter.rateLimitOrThrow(`queue_mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
+
       await updateQueueUseCase.reorderQueue({
         roomId,
         fromIndex: data.from,
@@ -82,6 +96,9 @@ export function handleQueueEvents(
   socket.on('queue:add', async (data, callback) => {
     try {
       requireHost(socket);
+      // Host limit
+      await rateLimiter.rateLimitOrThrow(`queue_mod:${roomId}`, RATE_LIMIT_RULES.ws.host);
+
       await updateQueueUseCase.addSegment({
         roomId,
         kind: data.segment.kind,

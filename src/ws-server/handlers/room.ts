@@ -3,6 +3,8 @@ import { UpdateRoomPrefsUseCase } from '../../core/application/use-cases/UpdateR
 import type { ClientEvents, ServerEvents } from '../../types';
 import { Theme } from '../../core/domain/types';
 import { requireHost } from '../guards';
+import { RedisRateLimiter } from '../../infrastructure/security/rateLimit/RedisRateLimiter';
+import { RATE_LIMIT_RULES } from '../../infrastructure/security/rateLimit/rules';
 
 export function handleRoomEvents(
   io: Server<ClientEvents, ServerEvents>,
@@ -10,14 +12,18 @@ export function handleRoomEvents(
   data: any, // Using any for now to avoid circular dependency or just use the fields
   dependencies: {
     updateRoomPrefsUseCase: UpdateRoomPrefsUseCase;
+    rateLimiter: RedisRateLimiter;
   }
 ) {
   const { roomId } = socket.data;
-  const { updateRoomPrefsUseCase } = dependencies;
+  const { updateRoomPrefsUseCase, rateLimiter } = dependencies;
 
   socket.on('prefs:update', async (updateData) => {
     try {
       requireHost(socket);
+
+      // Rate limit: 20/min per room for host controls
+      await rateLimiter.rateLimitOrThrow(`room_update:${roomId}`, RATE_LIMIT_RULES.ws.host);
 
       if (updateData.theme) {
         await updateRoomPrefsUseCase.execute({

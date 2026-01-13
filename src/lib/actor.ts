@@ -1,45 +1,37 @@
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "./auth";
-import { cookies, headers } from "next/headers";
-import { v4 as uuidv4 } from "uuid";
-import { Actor } from "@/types/actor";
+import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { type Actor } from "@/types/actor";
 
-export async function getActorFromRequest(): Promise<Actor> {
+/**
+ * Resolves the current actor from the request context.
+ * 
+ * Logic:
+ * 1. Check for NextAuth session (Server-side).
+ * 2. If present -> Actor is User.
+ * 3. If absent -> Actor is Guest (using sessionId cookie).
+ */
+export async function resolveActor(): Promise<Actor> {
     const session = await getServerSession(authOptions);
+    const cookieStore = cookies();
+    const sessionId = cookieStore.get("sessionId")?.value || "unknown-session";
 
-    // In Next.js 15+ these are async. In 14.2 they are sync but awaiting is safe.
-    const cookieStore = await cookies();
-    const headerStore = await headers();
-
-    // 1. Get sessionId (should be set by middleware)
-    let sessionId = cookieStore.get("sessionId")?.value;
-
-    // Fallback if middleware hasn't set it yet (e.g. first request)
-    if (!sessionId) {
-        sessionId = uuidv4();
-    }
-
-    // 2. Get real IP from headers
-    const ip = headerStore.get("x-forwarded-for")?.split(",")[0]
-        ?? headerStore.get("x-real-ip")
-        ?? "0.0.0.0";
-
-    // 3. Check for authenticated user
+    // 1. User
     if (session?.user?.id) {
         return {
             actorType: "user",
             actorId: session.user.id,
             userId: session.user.id,
-            sessionId,
-            ip
+            sessionId: sessionId, // Keep session ID for merging context
+            ip: "unknown", // IP resolution is usually middleware-level, optional here
         };
     }
 
-    // 4. Guest fallback
+    // 2. Guest
     return {
         actorType: "guest",
         actorId: sessionId,
-        sessionId,
-        ip
+        sessionId: sessionId,
+        ip: "unknown",
     };
 }

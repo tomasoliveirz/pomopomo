@@ -12,7 +12,8 @@ import { PrismaMessageRepository } from '../infrastructure/db/prisma/PrismaMessa
 import { PrismaProposalRepository } from '../infrastructure/db/prisma/PrismaProposalRepository';
 import { RedisStateRepository } from '../infrastructure/cache/RedisStateRepository';
 import { RedisPresenceRepository } from '../infrastructure/cache/RedisPresenceRepository';
-import { RedisRateLimiter } from '../infrastructure/cache/RedisRateLimiter';
+import { RedisRateLimiter } from '../infrastructure/security/rateLimit/RedisRateLimiter';
+import { RATE_LIMIT_RULES } from '../infrastructure/security/rateLimit/rules';
 import { SocketIoRoomEventsBus } from '../infrastructure/ws/SocketIoRoomEventsBus';
 import { JwtAuthService } from '../infrastructure/auth/JwtAuthService';
 import { JoinRoomUseCase } from '../core/application/use-cases/JoinRoomUseCase';
@@ -149,7 +150,27 @@ io.use(async (socket, next) => {
   socket.data.roomId = participant.props.roomId;
   socket.data.participantId = participant.id;
   socket.data.roomRole = participant.role; // Always trust DB role
+  socket.data.roomRole = participant.role; // Always trust DB role
   next();
+});
+
+// Connection Rate Limiter Middleware
+io.use(async (socket, next) => {
+  // Better IP extraction for proxies
+  let ip = socket.handshake.address || 'unknown';
+  const forwardedFor = socket.handshake.headers['x-forwarded-for'];
+  if (forwardedFor) {
+    ip = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor.split(',')[0]).trim();
+  }
+
+  try {
+    // Limit per IP
+    await rateLimiter.rateLimitOrThrow(`ws_connect:ip:${ip}`, RATE_LIMIT_RULES.ws.connect);
+    next();
+  } catch (e: any) {
+    console.warn(`[RateLimit] Connection rejected for ${ip}`);
+    next(new Error('Too many connection attempts'));
+  }
 });
 
 import { DisconnectManager } from './DisconnectManager';
@@ -263,10 +284,10 @@ io.on('connection', async (socket: Socket) => {
     }
 
     // --- REGISTER HANDLERS ---
-    handleRoomEvents(io, socket, data, { updateRoomPrefsUseCase });
-    handleQueueEvents(io, socket, data, { updateQueueUseCase, timerService });
-    handleTaskEvents(io, socket, data, { manageTasksUseCase });
-    handleProposalEvents(io, socket, data, { submitProposalUseCase, moderateProposalUseCase });
+    handleRoomEvents(io, socket, data, { updateRoomPrefsUseCase, rateLimiter });
+    handleQueueEvents(io, socket, data, { updateQueueUseCase, timerService, rateLimiter });
+    handleTaskEvents(io, socket, data, { manageTasksUseCase, rateLimiter });
+    handleProposalEvents(io, socket, data, { submitProposalUseCase, moderateProposalUseCase, rateLimiter });
     handleChatEvents(io, socket, data, { postMessageUseCase, rateLimiter });
     handleWhiteboardEvents(io, socket, data, { rateLimiter });
 
