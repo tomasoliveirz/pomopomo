@@ -3,7 +3,6 @@ import { useState } from 'react';
 
 interface MemberListProps {
   participants: Participant[];
-  hostSessionId: string;
 }
 
 // Custom Crown Icon Component
@@ -28,7 +27,7 @@ const CrownIcon = () => (
   </svg>
 );
 
-export default function MemberList({ participants, hostSessionId }: MemberListProps) {
+export default function MemberList({ participants }: MemberListProps) {
   const [showAll, setShowAll] = useState(false);
 
   const getInitials = (name: string) => {

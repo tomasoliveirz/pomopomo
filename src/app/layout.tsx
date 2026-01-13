@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { Nunito } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
+import AuthProvider from '@/components/providers/AuthProvider';
+import IdentityBridge from '@/components/auth/IdentityBridge';
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -36,15 +38,18 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/branding/logo.svg" />
       </head>
       <body className={`${nunito.variable} font-sans`} data-theme="midnight_bloom">
-        {process.env.NODE_ENV === 'production' && (
-          <Script
-            id="adsbygoogle-init"
-            strategy="afterInteractive"
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1657008186985321"
-            crossOrigin="anonymous"
-          />
-        )}
-        {children}
+        <AuthProvider>
+          <IdentityBridge />
+          {process.env.NODE_ENV === 'production' && (
+            <Script
+              id="adsbygoogle-init"
+              strategy="afterInteractive"
+              src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1657008186985321"
+              crossOrigin="anonymous"
+            />
+          )}
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

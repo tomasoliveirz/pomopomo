@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Logo from '../Logo';
 import SharePopup from '../SharePopup';
 import type { Room } from '@/types';
+import UserMenu from '../UserMenu';
 
 interface RoomHeaderProps {
   room: Room;
@@ -31,10 +32,12 @@ export default function RoomHeader({ room, onShareClick, onReportClick }: RoomHe
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="text-sm px-3 py-1 bg-card rounded-lg border border-accent-subtle">
-              <span className="opacity-60">Room:</span>{' '}
-              <span className="font-mono font-semibold">{room.code}</span>
-            </div>
+            <span className="opacity-60">Room:</span>{' '}
+            <span className="font-mono font-semibold">{room.code}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <UserMenu />
 
             <button
               onClick={onReportClick}
@@ -51,7 +54,6 @@ export default function RoomHeader({ room, onShareClick, onReportClick }: RoomHe
             >
               🔗 Share
             </button>
-
           </div>
         </div>
       </header>

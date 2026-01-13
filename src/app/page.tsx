@@ -4,12 +4,18 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Logo from '@/components/Logo';
 import BackgroundPhysics from '@/components/BackgroundPhysics';
+import UserMenu from '@/components/UserMenu';
 
 export default function HomePage() {
   const router = useRouter();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden pointer-events-none">
+
+      {/* Auth / User Menu (Top Right) */}
+      <div className="absolute top-4 right-4 z-50 pointer-events-auto">
+        <UserMenu />
+      </div>
 
       {/* 1. Physics Background */}
       <BackgroundPhysics />
