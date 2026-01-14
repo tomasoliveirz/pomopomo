@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { container } from '../../container';
 import { createRoomSchema } from '@/lib/validators';
-import { getActorFromRequest } from '@/lib/actor';
+import { resolveActor } from '@/lib/actor';
 import { config } from '@/infrastructure/config/env';
 
 export async function POST(request: NextRequest) {
   try {
-    const actor = await getActorFromRequest();
+    const actor = await resolveActor();
 
     // Rate limit check for room creation
     const allowed = await container.rateLimiter.checkLimit(

@@ -165,6 +165,13 @@ io.use(async (socket, next) => {
     }
   }
 
+  // Normalize IPv6 mapped IPv4 and loopback
+  if (ip.startsWith('::ffff:')) {
+    ip = ip.substring(7);
+  } else if (ip === '::1') {
+    ip = '127.0.0.1';
+  }
+
   try {
     // Limit per IP
     await rateLimiter.rateLimitOrThrow(`ws:connect:ip:${ip}`, RATE_LIMIT_RULES.ws.connect);

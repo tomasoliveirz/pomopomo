@@ -12,6 +12,13 @@ const envSchema = z.object({
     NEXT_PUBLIC_API_URL: z.string().default('http://localhost:3000'),
     WS_PORT: z.coerce.number().default(3001),
     ROOM_TTL_HOURS: z.coerce.number().default(24),
+    // Auth
+    AUTH_GOOGLE_ID: z.string().optional(),
+    AUTH_GOOGLE_SECRET: z.string().optional(),
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    AUTH_SECRET: z.string().optional(),
+    NEXTAUTH_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -68,7 +75,7 @@ export const config = {
                     'http://51.38.190.126:3050',
                     'http://localhost:3050'
                 ]
-                : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+                : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3004'],
             credentials: true,
         },
     },

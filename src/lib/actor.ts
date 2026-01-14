@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { type Actor } from "@/types/actor";
 
@@ -12,7 +11,7 @@ import { type Actor } from "@/types/actor";
  * 3. If absent -> Actor is Guest (using sessionId cookie).
  */
 export async function resolveActor(): Promise<Actor> {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const cookieStore = cookies();
     const sessionId = cookieStore.get("sessionId")?.value || "unknown-session";
 

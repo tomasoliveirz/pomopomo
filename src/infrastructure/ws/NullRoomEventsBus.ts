@@ -9,4 +9,5 @@ export class NullRoomEventsBus implements IRoomEventsBus {
     publishRoomStateUpdated(room: Room): void { }
     publishQueueUpdated(roomId: string, segments: Segment[]): void { }
     publishParticipantsUpdated(roomId: string, participants: Participant[]): void { }
+    publishParticipantRoleUpdated(roomId: string, participantId: string, newRole: string): void { }
 }

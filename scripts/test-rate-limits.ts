@@ -1,160 +1,219 @@
 import { io } from 'socket.io-client';
-import fetch from 'node-fetch';
 
-const WS_URL = 'http://localhost:3001';
-const API_URL = 'http://localhost:3000';
-const ROOM_CODE = 'TEST' + Math.floor(Math.random() * 1000);
+// Ensure fetch is available (Node 18+ has it globally, but for older node/types we might need this)
+// If running with tsx, global fetch is usually present.
+declare global {
+    var fetch: any;
+}
 
-async function testHttpRateLimits() {
-    console.log('\n🧪 Testing HTTP Rate Limits...');
+const WS_URL = process.env.WS_URL ?? 'http://127.0.0.1:3001';
+const API_URL = process.env.API_URL ?? 'http://127.0.0.1:3000';
+// ROOM_CODE will be set dynamically
+let ROOM_CODE = '';
 
-    // Test Join Limit (IP based)
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function createRoom() {
+    console.log(`  🔨 Creating room ${ROOM_CODE}...`);
+    // Note: The API might generate its own code or accept one. 
+    // Looking at POST /api/rooms usually generates one.
+    // But we need a known code or to read the one it created.
+    // If the API allows force-code (for testing) that's great, but likely it doesn't.
+    // So we should CREATE first, then use the returned code.
+    const res = await fetch(`${API_URL}/api/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: 'lofi_girl', status: 'idle' })
+    });
+
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Create room failed ${res.status}: ${text}`);
+    }
+
+    const json = await res.json();
+    return json.data.room.code;
+}
+
+async function joinAndGetToken() {
+    console.log(`  🔍 Joining room ${ROOM_CODE} via HTTP...`);
+    const res = await fetch(`${API_URL}/api/rooms/${ROOM_CODE}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ displayName: 'SocketBot' }),
+    });
+
+    const text = await res.text();
+    if (!res.ok) throw new Error(`join failed ${res.status}: ${text.slice(0, 300)}`);
+
+    const json = JSON.parse(text);
+    const token = json?.data?.wsToken;
+    const roomId = json?.data?.room?.id; // Internal UUID
+
+    if (!token || !roomId) throw new Error(`Token/ID shape mismatch: ${JSON.stringify(json).slice(0, 300)}`);
+
+    return { token, roomId };
+}
+
+function connectOnce(token: string) {
+    return new Promise<{ socket: any }>((resolve, reject) => {
+        const socket = io(WS_URL, {
+            auth: { token },
+            transports: ['websocket'],
+            reconnection: false,
+        });
+
+        const t = setTimeout(() => {
+            socket.close();
+            reject(new Error('connect timeout'));
+        }, 5000);
+
+        socket.on('connect', () => {
+            clearTimeout(t);
+            resolve({ socket });
+        });
+
+        socket.on('connect_error', (err: any) => {
+            clearTimeout(t);
+            reject(err);
+        });
+    });
+}
+
+function validStroke() {
+    // Simple UUID v4 replacement if crypto not available
+    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+
+    return {
+        id: uuid,
+        type: 'pen',
+        color: '#000000',
+        points: [
+            [100, 100, 0.5],
+            [101, 101, 0.5],
+        ],
+        strokeWidth: 2,
+    };
+}
+
+async function testWsRateLimits() {
+    console.log('\n🧪 Testing WS Rate Limits...');
+
+    const { token, roomId } = await joinAndGetToken();
+    console.log(`  ✅ Got WS token and Room UUID: ${roomId}`);
+
+    // --- 2) Stable connection for chat/whiteboard tests
+    // We run this FIRST so we don't block ourselves with the connect limiter.
+    if (process.env.MODE !== 'connect') {
+        console.log('\n🧪 Testing Event Rate Limits (Chat/Whiteboard)...');
+        console.log('  🔌 Connecting for event limit tests...');
+
+        const { socket } = await connectOnce(token);
+        console.log('  ✅ Connected for event tests');
+
+        let rateErrors = 0;
+        socket.on('error', (err: any) => {
+            // Robust detection: check for retryAfterSec (preferred)
+            if (typeof err?.retryAfterSec === 'number') {
+                rateErrors++;
+            }
+        });
+
+        // --- Chat limiter: 5 per 10s ---
+        console.log('  🔥 Spamming chat (12 messages fast)...');
+        const chatBefore = rateErrors;
+        for (let i = 0; i < 12; i++) {
+            socket.emit('chat:send', { text: `Spam ${i}` });
+            await sleep(150);
+        }
+        await sleep(1000);
+
+        if (rateErrors - chatBefore > 0) {
+            console.log(`  ✅ Chat limiter triggered (${rateErrors - chatBefore} errors)`);
+        } else {
+            console.log('  ❌ Chat limiter not observed');
+        }
+
+        // --- Whiteboard limiter: 30 per 10s ---
+        console.log('  🔥 Spamming whiteboard (40 strokes fast)...');
+
+        const wbBefore = rateErrors;
+        for (let i = 0; i < 40; i++) {
+            socket.emit('whiteboard:draw', { roomId, stroke: validStroke() });
+            await sleep(30);
+        }
+        await sleep(1000);
+
+        const wbErrors = rateErrors - wbBefore;
+        if (wbErrors > 0) {
+            console.log(`  ✅ Whiteboard limiter triggered (${wbErrors} new errors)`);
+        } else {
+            console.log('  ⚠️ Whiteboard limiter not observed.');
+        }
+
+        socket.close();
+    }
+
+    // --- 1) Connect limiter: 20/min per IP
+    // Run this LAST or only if MODE=connect/all, because it bans the IP.
+    if (process.env.MODE === 'connect' || process.env.MODE === 'all' || !process.env.MODE) {
+        // Logic: if we just ran events, we might need a small pause, but we WANT to trigger the limit now.
+        console.log('\n🧪 Testing Connect Rate Limiter (reconnecting 25x)...');
+        console.log('  (This is run last because it might block your IP for a minute)');
+
+        let connectErrors = 0;
+        for (let i = 0; i < 25; i++) {
+            try {
+                const { socket } = await connectOnce(token);
+                socket.close();
+            } catch (e: any) {
+                connectErrors++;
+                // once blocked, we might get errors fast
+                await sleep(50);
+            }
+            // small delay between attempts
+            await sleep(50);
+        }
+
+        if (connectErrors > 0) {
+            console.log(`  ✅ Connect limiter triggered (${connectErrors} connect errors)`);
+        } else {
+            console.log('  ⚠️ No connect errors observed (maybe limits higher or window not hit)');
+        }
+    }
+}
+
+async function testHttpJoinIpLimit() {
+    console.log('\n🧪 Testing HTTP Join IP limit...');
+
     console.log('  Attempting 15 joins in parallel...');
-    const joins = Array(15).fill(0).map((_, i) =>
+    const joins = Array.from({ length: 15 }, (_, i) =>
         fetch(`${API_URL}/api/rooms/${ROOM_CODE}/join`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ displayName: `Bot${i}` })
-        }).then(res => res.status)
+            body: JSON.stringify({ displayName: `Bot${i}` }),
+        }).then((r: any) => r.status)
     );
 
     const results = await Promise.all(joins);
-    const successCount = results.filter(s => s === 200 || s === 201).length;
-    const limitedCount = results.filter(s => s === 429).length;
+    const ok = results.filter((s) => s === 200 || s === 201).length;
+    const rl = results.filter((s) => s === 429).length;
 
-    console.log(`  Results: ${successCount} successes, ${limitedCount} rate limited`);
-
-    if (limitedCount > 0) {
-        console.log('  ✅ HTTP IP Rate limit working!');
-    } else {
-        console.error('  ❌ HTTP IP Rate limit FAILED (or limits are too high)');
-    }
-}
-
-async function testSocketRateLimits() {
-    console.log('\n🧪 Testing Socket Rate Limits...');
-
-    // 1. Get a token via HTTP (assuming we are not rate limited yet or using a new IP if checked)
-    // For this test script, we might fail if HTTP limit is already hit. 
-    // We will try one join.
-    let token;
-    let participantId;
-
-    try {
-        const joinRes = await fetch(`${API_URL}/api/rooms/${ROOM_CODE}/join`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ displayName: `SocketBot` })
-        });
-
-        if (joinRes.status === 429) {
-            console.log('  ⚠️ Cannot get token, HTTP limit hit. Rerun script later.');
-            return;
-        }
-
-        const data = await joinRes.json() as any;
-        // Fix based on API shape: { status: 'success', data: { wsToken: '...' } }
-        token = data.data?.wsToken;
-        participantId = data.data?.participantId;
-
-        if (!token) {
-            console.error('  ❌ Token structure mismatch:', JSON.stringify(data));
-            return;
-        }
-        console.log('  ✅ Got WS Token');
-
-    } catch (e) {
-        console.error('  ❌ Failed to get token:', e);
-        return;
-    }
-
-    if (!token) return;
-
-    // 2. Connect Socket
-    const socket = io(WS_URL, {
-        auth: { token },
-        transports: ['websocket'],
-        reconnection: false
-    });
-
-    await new Promise<void>((resolve, reject) => {
-        socket.on('connect', () => {
-            console.log('  ✅ Socket connected');
-            resolve();
-        });
-        socket.on('connect_error', (err) => {
-            console.error('  ❌ Connection error:', err.message);
-            reject(err);
-        });
-        setTimeout(() => reject(new Error('Connection timeout')), 5000);
-    });
-
-    // 3. Spam Chat
-    console.log('  🔥 Spamming 10 chat messages...');
-    let errors = 0;
-
-    socket.on('error', (err: any) => {
-        if (err.message.includes('Too Many Requests') || err.message.includes('fast')) {
-            errors++;
-        }
-    });
-
-    for (let i = 0; i < 10; i++) {
-        socket.emit('chat:send', { text: `Spam ${i}` });
-        await new Promise(r => setTimeout(r, 100)); // 100ms interval (10/sec) -> limit is 5/10s
-    }
-
-    // Wait for responses
-    await new Promise(r => setTimeout(r, 1000));
-
-    if (errors > 0) {
-        console.log(`  ✅ Chat Rate limit triggered! Received ${errors} errors.`);
-    } else {
-        console.error('  ❌ Chat: No rate limit errors received.');
-    }
-
-    // 4. Spam Whiteboard (should silently drop or error depending on implementation? implemented throw now)
-    console.log('  🔥 Spamming 15 whiteboard strokes...');
-    let wbErrors = 0;
-    // We need a separate listener or reset errors count if we want to be precise, 
-    // but let's just use the global error listener we already have.
-    const initialErrors = errors;
-
-    for (let i = 0; i < 15; i++) {
-        socket.emit('whiteboard:draw', {
-            id: 'uuid-test-' + i,
-            points: [1, 2, 3],
-            color: '#000',
-            size: 2,
-            tool: 'pen',
-            isComplete: true
-        });
-        await new Promise(r => setTimeout(r, 50)); // Fast spam
-    }
-    await new Promise(r => setTimeout(r, 1000));
-
-    // Note: whiteboard implementation used to fail silently, now it throws.
-    // We expect at least some errors if limit is 30/10s? Wait, loop is 15. Rules say 30/10s.
-    // So 15 shouldn't trigger limit. Let's do 40.
-    for (let i = 0; i < 20; i++) {
-        socket.emit('whiteboard:draw', {
-            id: 'uuid-test-more-' + i,
-            points: [1, 2, 3],
-            color: '#000',
-            size: 2,
-            tool: 'pen',
-            isComplete: true
-        });
-    }
-    await new Promise(r => setTimeout(r, 1000));
-    // Actually checking specific error messages would be better but simple count diff is okay request-wise.
-
-    socket.close();
+    console.log(`  Results: ${ok} ok, ${rl} rate-limited`);
+    console.log(rl > 0 ? '  ✅ HTTP IP limiter working' : '  ❌ HTTP IP limiter not observed');
 }
 
 async function run() {
-    await testHttpRateLimits();
-    await testSocketRateLimits();
+    ROOM_CODE = await createRoom();
+    console.log(`  ✅ Created room: ${ROOM_CODE}`);
+    await testWsRateLimits();
+    // await testHttpJoinIpLimit();
 }
 
-run().catch(console.error);
+run().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+});

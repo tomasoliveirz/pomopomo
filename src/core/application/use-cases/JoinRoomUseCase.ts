@@ -67,7 +67,24 @@ export class JoinRoomUseCase {
                 joinedAt: now,
                 lastSeenAt: now
             });
-            await this.participantRepo.save(participant);
+            try {
+                await this.participantRepo.save(participant);
+            } catch (error: any) {
+                // Handle potential race condition: P2002 Unique constraint failed on the constraint: `participants_room_id_user_id_key`
+                if (error.code === 'P2002' || error.message?.includes('Unique constraint')) {
+                    const existing = input.userId
+                        ? await this.participantRepo.findByUserId(room.id, input.userId)
+                        : null;
+
+                    if (existing) {
+                        participant = existing;
+                    } else {
+                        throw error; // If effectively not duplicate, rethrow
+                    }
+                } else {
+                    throw error;
+                }
+            }
         } else {
             // Upgrade path: if participant exists by sessionId but has no userId, and we now have a userId
             if (!participant.props.userId && input.userId) {

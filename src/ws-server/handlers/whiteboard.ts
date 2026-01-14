@@ -105,7 +105,9 @@ export function handleWhiteboardEvents(
             state.strokes.push(strokeWithUser);
             socket.to(roomId).emit('whiteboard:new-stroke', strokeWithUser);
         } catch (e: any) {
-            socket.emit('error', { message: e.message || 'Invalid stroke data' });
+            const payload: any = { message: e.message || 'Invalid stroke data' };
+            if (e?.name === 'RateLimitError') payload.retryAfterSec = e.retryAfterSec;
+            socket.emit('error', payload);
         }
     });
 
@@ -126,7 +128,9 @@ export function handleWhiteboardEvents(
             }
             socket.to(roomId).emit('whiteboard:erase', strokeId);
         } catch (e: any) {
-            socket.emit('error', { message: e.message || 'Failed to erase' });
+            const payload: any = { message: e.message || 'Failed to erase' };
+            if (e?.name === 'RateLimitError') payload.retryAfterSec = e.retryAfterSec;
+            socket.emit('error', payload);
         }
     });
 
