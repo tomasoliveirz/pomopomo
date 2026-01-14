@@ -1,5 +1,6 @@
 import { PrismaRoomRepository } from '../infrastructure/db/prisma/PrismaRoomRepository';
 import { PrismaParticipantRepository } from '../infrastructure/db/prisma/PrismaParticipantRepository';
+import { PrismaUserProfileRepository } from '../infrastructure/db/prisma/PrismaUserProfileRepository';
 import { NullRoomEventsBus } from '../infrastructure/ws/NullRoomEventsBus';
 import { SystemClock } from '../infrastructure/config/SystemClock';
 import { JwtAuthService } from '../infrastructure/auth/JwtAuthService';
@@ -33,11 +34,14 @@ const joinRoomUseCase = new JoinRoomUseCase(
     clock
 );
 
+const userProfileRepo = new PrismaUserProfileRepository();
+
 export const container = {
     createRoomUseCase,
     joinRoomUseCase,
     authService,
     roomRepo,
     participantRepo,
+    userProfileRepo,
     rateLimiter
 };

@@ -19,6 +19,7 @@ import ReportModal from '@/components/room/ReportModal';
 import Whiteboard from '@/components/room/Whiteboard';
 import { handleSegmentEnd } from '@/alerts/engine';
 import RoomNotFound from '@/components/RoomNotFound';
+import ProfileSetupModal from '@/components/room/ProfileSetupModal';
 import type { Room, Participant, Segment, Message, RoomStatus } from '@/types';
 
 // Simple Error Boundary Component
@@ -83,6 +84,8 @@ function RoomPage() {
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [joinName, setJoinName] = useState('');
   const [joining, setJoining] = useState(false);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
+  const [modalRoomId, setModalRoomId] = useState<string | undefined>(undefined);
 
   // Handle direct join via URL
   const handleDirectJoin = async () => {
@@ -122,38 +125,65 @@ function RoomPage() {
 
   useEffect(() => {
     const initializeSocket = async () => {
-      let wsToken = localStorage.getItem('wsToken');
-      const participantId = localStorage.getItem('participantId');
+      let wsToken: string | null = null;
+      // BOOTSTRAP: Ask server for state/token
+      try {
+        const res = await fetch(`/api/rooms/${code}/bootstrap`, { method: 'POST' });
+        const data = await res.json();
 
-      // If no token, attempt to fetch a fresh one (e.g. after auth merge or expiry)
-      if (!wsToken) {
-        console.log('🔄 No WS token found, attempting to get one...');
-        try {
-          const res = await fetch(`/api/rooms/${code}/ws-token`, { method: 'POST' });
-          const data = await res.json();
-
-          if (res.ok && data.success) {
-            console.log('✅ Obtained fresh WS token');
-            wsToken = data.data.wsToken;
-            localStorage.setItem('wsToken', wsToken!);
-            if (data.data.participantId) {
-              localStorage.setItem('participantId', data.data.participantId);
-            }
-          } else {
-            console.log('⚠️ Could not auto-join, showing helper.');
-            setShowJoinForm(true);
-            setLoading(false);
-            return;
+        if (!res.ok) {
+          if (res.status === 404) {
+            // Let ErrorFallback or RoomNotFound handle it
+            throw new Error('Room not found');
           }
-        } catch (err) {
-          console.error('Failed to fetch WS token', err);
+          throw new Error(data.message || 'Failed to bootstrap');
+        }
+
+        if (data.status === 'joined') {
+          wsToken = data.data.wsToken;
+          // Update local storage just in case other components need it (legacy)
+          localStorage.setItem('wsToken', wsToken!);
+          if (data.data.participant) {
+            localStorage.setItem('participantId', data.data.participant.id);
+          }
+          if (data.needsProfileSetup) {
+            console.log('⚠️ Profile incomplete -> showing modal');
+            setModalRoomId(data.data.room.id);
+            setShowProfileSetup(true);
+          }
+          // Optimistically set room/me data if provided to avoid flicker
+          setRoom(data.data.room);
+          setMe(data.data.participant);
+        } else if (data.status === 'needs-onboarding') {
+          console.log('Redirecting to onboarding...');
+          router.push(`/onboarding?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
+          return;
+        } else if (data.status === 'needs-join') {
+          console.log('Needs guest name -> showing form');
           setShowJoinForm(true);
           setLoading(false);
           return;
         }
+
+      } catch (err: any) {
+        console.error('Bootstrap failed', err);
+        setError(err.message);
+        setLoading(false);
+        return;
       }
 
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+
+      // Intelligent WS URL detection
+      let wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+
+      // Force local WS if running locally (overrides potential prod env vars)
+      if (typeof window !== 'undefined') {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocal) {
+          wsUrl = 'http://localhost:3001';
+          console.log('🔧 Local environment detected, forcing WS URL:', wsUrl);
+        }
+      }
 
       const newSocket = io(wsUrl, {
         auth: { token: wsToken },
@@ -519,12 +549,7 @@ function RoomPage() {
           onClose={() => setChatOpen(false)}
         />
 
-        {/* Toast Notification */}
-        {toastMessage && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-accent text-white px-6 py-3 rounded-full shadow-lg animate-fade-in-down font-medium">
-            {toastMessage}
-          </div>
-        )}
+
       </div>
 
       {/* Control Dock */}
@@ -568,6 +593,20 @@ function RoomPage() {
         {showSettings && (
           <RoomSettingsModal
             onClose={() => setShowSettings(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Progressive Onboarding Modal */}
+      <AnimatePresence>
+        {showProfileSetup && (
+          <ProfileSetupModal
+            roomId={modalRoomId || room?.id}
+            onClose={() => setShowProfileSetup(false)}
+            onCompleted={(name) => {
+              setMe(prev => prev ? { ...prev, displayName: name } : null);
+              setToastMessage('Profile updated!');
+            }}
           />
         )}
       </AnimatePresence>

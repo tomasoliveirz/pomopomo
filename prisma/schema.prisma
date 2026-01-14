@@ -232,8 +232,25 @@ model User {
   accounts      Account[]
   sessions      Session[]
   participants  Participant[]
+  profile       UserProfile?
 
   @@map("users")
+}
+
+model UserProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  displayName      String   @map("display_name")
+  avatarUrl        String?  @map("avatar_url")
+  bio              String?
+  profileCompleted Boolean  @default(false) @map("profile_completed")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([displayName])
+  @@map("user_profiles")
 }
 
 model VerificationToken {
