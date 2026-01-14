@@ -89,7 +89,9 @@ Each release has:
 
 **Definition of Done**
 - Guests can join rooms exactly like today.
+- Guests can join rooms exactly like today.
 - Signed-in users persist identity and have a `userId` attached to presence/messages/stats.
+- **[NEW]** Progressive Onboarding: missing profile does not block room entry.
 
 ---
 
@@ -435,6 +437,7 @@ Each release has:
 2. **Release 0 / Epic C**: Anti-abuse (rate limits + Turnstile on create room)
 3. **Release 0 / Epic D**: Event-driven timer scheduling
 4. **Release 0 / Epic E+F**: Reduce DB writes + prevent broadcast storms
+5. **Release 0 / Epic G**: Progressive Onboarding (UX Polish + Hardening) - *Done*
 5. **Release 1**: Public discovery + languages + visibility modes
 6. **Release 2**: Presence + profiles
 7. **Release 3**: Stats + leaderboards
