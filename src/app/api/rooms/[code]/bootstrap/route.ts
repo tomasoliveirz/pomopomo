@@ -6,6 +6,7 @@ import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
 import { TokenPayload } from '@/core/application/ports/IAuthService';
 import { UserProfile } from '@/core/domain/entities/UserProfile';
 import { Participant } from '@/core/domain/entities/Participant';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(
     request: NextRequest,
@@ -68,7 +69,7 @@ export async function POST(
             let needsProfileSetup = false;
             if (actor.actorType === 'user' && actor.userId) {
                 const profile = await container.userProfileRepo.findByUserId(actor.userId);
-                if (!profile || !profile.isCompleted) {
+                if (!profile || !profile.username || !profile.isCompleted) {
                     needsProfileSetup = true;
                     // Ensure profile exists if missing (auto-heal/provisional)
                     if (!profile) {
@@ -126,7 +127,7 @@ export async function POST(
             if (!profile) {
                 // PROGRESSIVE ONBOARDING: Create provisional profile
                 const provisionalName = "Pomo User";
-                const newProfile = new UserProfile(crypto.randomUUID(), {
+                const newProfile = new UserProfile(uuidv4(), {
                     userId: actor.userId,
                     displayName: provisionalName,
                     profileCompleted: false, // Flag for UI
@@ -136,9 +137,13 @@ export async function POST(
                 await container.userProfileRepo.save(newProfile);
                 profile = newProfile;
                 needsProfileSetup = true;
-            } else if (!profile.isCompleted) {
+                await container.userProfileRepo.save(newProfile);
+                profile = newProfile;
+                needsProfileSetup = true;
+            } else if (!profile.username || !profile.isCompleted) {
                 needsProfileSetup = true;
             }
+
 
             // AUTO-JOIN (Provisional or Full)
             try {

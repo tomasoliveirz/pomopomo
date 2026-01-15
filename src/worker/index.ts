@@ -31,7 +31,7 @@ async function bootstrap() {
     // Repositories (Prisma repos use internal singleton or passed instance)
     const roomRepo = new PrismaRoomRepository(prisma);
     const segmentRepo = new PrismaSegmentRepository(prisma);
-    const stateRepo = new RedisStateRepository(redis);
+    const stateRepo = new RedisStateRepository();
     const eventsBus = new RedisRoomEventsBus(pubClient);
     const scheduler = new BullTimerScheduler(redis);
 

@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Logo from './Logo';
 import type { Theme } from '@/types';
 
+import { useSession } from 'next-auth/react';
+
 // Theme configuration with colors for the swatches
 const themes: { id: Theme; color: string; label: string }[] = [
   { id: 'lofi_girl', color: '#ffb7b2', label: 'Lofi Girl' },
@@ -16,11 +18,19 @@ const themes: { id: Theme; color: string; label: string }[] = [
 ];
 
 export default function RoomCreator() {
+  const { data: session } = useSession();
   const [selectedTheme, setSelectedTheme] = useState<Theme>('lofi_girl');
   const [hostName, setHostName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Smart ID: Pre-fill name if logged in
+  if (session?.user?.name && !hostName) {
+    setHostName(session.user.name);
+  } else if (session?.user?.email && !hostName) {
+    setHostName(session.user.email.split('@')[0]);
+  }
 
   const handleCreate = async () => {
     if (!hostName.trim()) {
@@ -85,22 +95,38 @@ export default function RoomCreator() {
 
         <div className="bg-card/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-xl shadow-accent-subtle/20 border border-white/20">
           <div className="space-y-8">
-            {/* Name Input */}
-            <div className="space-y-3">
-              <label htmlFor="hostName" className="block text-sm font-bold ml-1 text-text/80">
-                Your Name
-              </label>
-              <input
-                type="text"
-                id="hostName"
-                value={hostName}
-                onChange={(e) => setHostName(e.target.value)}
-                placeholder="Enter your name..."
-                className="w-full px-6 py-4 rounded-2xl bg-bg/50 border-2 border-transparent focus:border-accent/50 focus:bg-bg focus:ring-4 focus:ring-accent-subtle transition-all duration-300 outline-none text-lg font-medium placeholder:text-text/30"
-                maxLength={50}
-                disabled={loading}
-              />
-            </div>
+            {/* Name Input - Smart Mode */}
+            {session?.user ? (
+              <div className="space-y-3">
+                <label className="block text-sm font-bold ml-1 text-text/80">
+                  Identity
+                </label>
+                <div className="w-full px-6 py-4 rounded-2xl bg-accent/10 border-2 border-accent/20 flex items-center gap-3 text-lg font-medium text-text/80">
+                  <span className="text-2xl">👤</span>
+                  <div className="flex flex-col">
+                    <span className="text-xs uppercase tracking-wider font-bold opacity-50">Creating as</span>
+                    <span>{hostName}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label htmlFor="hostName" className="block text-sm font-bold ml-1 text-text/80">
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  id="hostName"
+                  value={hostName}
+                  onChange={(e) => setHostName(e.target.value)}
+                  placeholder="Enter your name..."
+                  className="w-full px-6 py-4 rounded-2xl bg-bg/50 border-2 border-transparent focus:border-accent/50 focus:bg-bg focus:ring-4 focus:ring-accent-subtle transition-all duration-300 outline-none text-lg font-medium placeholder:text-text/30"
+                  maxLength={50}
+                  disabled={loading}
+                  autoFocus
+                />
+              </div>
+            )}
 
             {/* Theme Selector */}
             <div className="space-y-4">

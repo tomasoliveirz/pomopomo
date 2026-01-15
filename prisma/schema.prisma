@@ -2,13 +2,15 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [citext]
 }
 
 enum Theme {
@@ -108,6 +110,7 @@ model Participant {
   tasks       Task[]
   proposals   Proposal[]
   messages    Message[]
+  messageReactions MessageReaction[]
 
   @@unique([roomId, sessionId])
   @@unique([roomId, userId])
@@ -152,19 +155,44 @@ model Proposal {
 }
 
 model Message {
-  id              String      @id @default(uuid())
-  roomId          String      @map("room_id")
-  participantId   String      @map("participant_id")
-  text            String
-  reactions       Json        @default("{}")
-  isShadowHidden  Boolean     @default(false) @map("is_shadow_hidden")
-  createdAt       DateTime    @default(now()) @map("created_at")
+  id             String      @id @default(uuid())
+  roomId         String      @map("room_id")
+  participantId  String      @map("participant_id")
+  text           String
+  reactions      Json        @default("{}") // legacy - stop using in code
+  isShadowHidden Boolean     @default(false) @map("is_shadow_hidden")
+  createdAt      DateTime    @default(now()) @map("created_at")
 
-  room            Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  participant     Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  // ✅ Replies (self relation)
+  replyToId      String?     @map("reply_to_id")
+  replyTo        Message?    @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]   @relation("MessageReplies")
+
+  // ✅ Reactions table
+  reactionRows   MessageReaction[]
+
+  room           Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  participant    Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
   @@index([roomId, createdAt])
+  @@index([replyToId])
   @@map("messages")
+}
+
+model MessageReaction {
+  id            String      @id @default(uuid())
+  messageId     String      @map("message_id")
+  participantId String      @map("participant_id")
+  emoji         String      @db.VarChar(24)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  message       Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  // one participant can react once per emoji per message (toggle)
+  @@unique([messageId, participantId, emoji])
+  @@index([messageId])
+  @@map("message_reactions")
 }
 
 model DailyStatistic {
@@ -229,6 +257,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime? @map("email_verified")
   image         String?
+  passwordHash  String?   @map("password_hash") // Added for Credentials Provider
   accounts      Account[]
   sessions      Session[]
   participants  Participant[]
@@ -240,15 +269,22 @@ model User {
 model UserProfile {
   id               String   @id @default(uuid())
   userId           String   @unique @map("user_id")
+
   displayName      String   @map("display_name")
   avatarUrl        String?  @map("avatar_url")
-  bio              String?
+  bio              String?  @db.VarChar(280) // Twitter-style length
+
+  // Identity
+  username         String?  @unique @db.Citext
+  usernameSetAt    DateTime? @map("username_set_at")
+
   profileCompleted Boolean  @default(false) @map("profile_completed")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([username])
   @@index([displayName])
   @@map("user_profiles")
 }

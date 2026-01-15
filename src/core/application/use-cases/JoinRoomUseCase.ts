@@ -23,10 +23,13 @@ export interface JoinRoomOutput {
     token: string;
 }
 
+import { IUserProfileRepository } from '../ports/IUserProfileRepository';
+
 export class JoinRoomUseCase {
     constructor(
         private roomRepo: IRoomRepository,
         private participantRepo: IParticipantRepository,
+        private userProfileRepo: IUserProfileRepository,
         private authService: IAuthService,
         private eventsBus: IRoomEventsBus,
         private clock: IClock
@@ -42,6 +45,16 @@ export class JoinRoomUseCase {
 
         const sessionId = SessionId.create(input.sessionId);
         const now = this.clock.now();
+
+        // Enforce Source of Truth for Identity
+        let displayName = input.displayName;
+        if (input.userId) {
+            const profile = await this.userProfileRepo.findByUserId(input.userId);
+            if (profile?.displayName) {
+                displayName = profile.displayName;
+            }
+            // If profile doesn't exist yet, we stick with input.displayName -> which might be provisional
+        }
 
         // 1. Try to find by sessionId
         let participant = await this.participantRepo.findBySessionId(room.id, sessionId.toString());
@@ -61,7 +74,7 @@ export class JoinRoomUseCase {
                 roomId: room.id,
                 sessionId: sessionId,
                 userId: input.userId,
-                displayName: input.displayName,
+                displayName: displayName, // Use enforced name
                 role: sessionId.equals(room.props.hostSessionId) ? 'host' : 'guest',
                 isMuted: false,
                 joinedAt: now,

@@ -22,10 +22,15 @@ export interface CreateRoomOutput {
     code: string;
 }
 
+import { IUserProfileRepository } from '../ports/IUserProfileRepository';
+
+// ... imports
+
 export class CreateRoomUseCase {
     constructor(
         private roomRepo: IRoomRepository,
         private participantRepo: IParticipantRepository,
+        private userProfileRepo: IUserProfileRepository,
         private eventsBus: IRoomEventsBus,
         private clock: IClock
     ) { }
@@ -34,6 +39,15 @@ export class CreateRoomUseCase {
         const sessionId = SessionId.create(input.hostSessionId);
         const now = this.clock.now();
         const expiresAt = new Date(now.getTime() + 72 * 60 * 60 * 1000); // 72 hours TTL
+
+        // Enforce Source of Truth for Identity
+        let displayName = input.hostName || 'Host';
+        if (input.hostUserId) {
+            const profile = await this.userProfileRepo.findByUserId(input.hostUserId);
+            if (profile?.displayName) {
+                displayName = profile.displayName;
+            }
+        }
 
         let attempts = 0;
         const MAX_ATTEMPTS = 10;
@@ -61,7 +75,7 @@ export class CreateRoomUseCase {
                     roomId: room.id,
                     sessionId: sessionId,
                     userId: input.hostUserId,
-                    displayName: input.hostName || 'Host',
+                    displayName: displayName, // Use enforced name
                     role: 'host',
                     isMuted: false,
                     joinedAt: now,

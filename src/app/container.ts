@@ -13,6 +13,7 @@ import { RedisRateLimiter } from '../infrastructure/security/rateLimit/RedisRate
 // Singletons
 const roomRepo = new PrismaRoomRepository();
 const participantRepo = new PrismaParticipantRepository();
+const userProfileRepo = new PrismaUserProfileRepository(); // MOVED UP
 const nullEventsBus = new NullRoomEventsBus();
 const clock = new SystemClock();
 const authService = new JwtAuthService();
@@ -22,6 +23,7 @@ const rateLimiter = new RedisRateLimiter();
 const createRoomUseCase = new CreateRoomUseCase(
     roomRepo,
     participantRepo,
+    userProfileRepo,
     nullEventsBus,
     clock
 );
@@ -29,12 +31,11 @@ const createRoomUseCase = new CreateRoomUseCase(
 const joinRoomUseCase = new JoinRoomUseCase(
     roomRepo,
     participantRepo,
+    userProfileRepo,
     authService,
     nullEventsBus,
     clock
 );
-
-const userProfileRepo = new PrismaUserProfileRepository();
 
 export const container = {
     createRoomUseCase,

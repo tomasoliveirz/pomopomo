@@ -48,6 +48,12 @@ export const moderateProposalSchema = z.object({
 // Chat validators
 export const sendChatSchema = z.object({
   text: z.string().min(1).max(500).trim(),
+  replyToId: z.string().uuid().optional(),
+});
+
+export const reactMessageSchema = z.object({
+  messageId: z.string().uuid(),
+  emoji: z.string().min(1).max(24).trim(),
 });
 
 

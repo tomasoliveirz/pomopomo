@@ -3,9 +3,11 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 import Logo from '@/components/Logo';
 
 function JoinRoomContent() {
+  const { data: session } = useSession();
   const searchParams = useSearchParams();
   const urlCode = searchParams.get('code');
 
@@ -16,29 +18,33 @@ function JoinRoomContent() {
   const [isCodeLocked, setIsCodeLocked] = useState(!!urlCode);
   const router = useRouter();
 
+  // Smart ID: Auto-fill/Auto-join
   useEffect(() => {
-    if (urlCode) {
-      setCode(urlCode);
-      setIsCodeLocked(true);
-      setTimeout(() => document.getElementById('displayName')?.focus(), 100);
+    if (session?.user && !displayName) {
+      const name = session.user.name || session.user.email?.split('@')[0] || 'User';
+      setDisplayName(name);
     }
-  }, [urlCode]);
+  }, [session, displayName]);
 
-  const handleJoin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!code.trim() || !displayName.trim()) {
-      setError('Please fill in all fields ✨');
-      return;
+  // Auto-join trigger if we have code + session
+  useEffect(() => {
+    if (urlCode && session?.user && !loading && !error) {
+      const name = session.user.name || session.user.email?.split('@')[0] || 'User';
+      handleJoinInternal(urlCode, name);
     }
+  }, [urlCode, session]);
+
+  const handleJoinInternal = async (joinCode: string, joinName: string) => {
+    if (!joinCode.trim() || !joinName.trim()) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/rooms/${code.trim()}/join`, {
+      const response = await fetch(`/api/rooms/${joinCode.trim()}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: displayName.trim() }),
+        body: JSON.stringify({ displayName: joinName.trim() }),
       });
 
       const result = await response.json();
@@ -49,12 +55,17 @@ function JoinRoomContent() {
       localStorage.setItem('participantId', result.data.participant.id);
       localStorage.setItem('roomCode', result.data.room.code);
 
-      router.push(`/room/${code.trim()}`);
+      router.push(`/room/${joinCode.trim()}`);
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
     }
   };
+
+  const handleJoin = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleJoinInternal(code, displayName);
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-[#FAFAFA]">

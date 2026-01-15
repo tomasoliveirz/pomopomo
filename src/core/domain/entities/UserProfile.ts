@@ -3,6 +3,8 @@ export interface UserProfileProps {
     displayName: string;
     avatarUrl?: string | null;
     bio?: string | null;
+    username?: string | null;
+    usernameSetAt?: Date | null;
     profileCompleted: boolean;
     createdAt?: Date;
     updatedAt?: Date;
@@ -16,6 +18,10 @@ export class UserProfile {
 
     get displayName() {
         return this.props.displayName;
+    }
+
+    get username() {
+        return this.props.username;
     }
 
     get isCompleted() {

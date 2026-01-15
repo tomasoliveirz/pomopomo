@@ -15,6 +15,8 @@ export class PrismaUserProfileRepository implements IUserProfileRepository {
             displayName: model.displayName,
             avatarUrl: model.avatarUrl,
             bio: model.bio,
+            username: model.username,
+            usernameSetAt: model.usernameSetAt,
             profileCompleted: model.profileCompleted,
             createdAt: model.createdAt,
             updatedAt: model.updatedAt
@@ -28,6 +30,8 @@ export class PrismaUserProfileRepository implements IUserProfileRepository {
                 displayName: profile.props.displayName,
                 avatarUrl: profile.props.avatarUrl,
                 bio: profile.props.bio,
+                username: profile.props.username,
+                usernameSetAt: profile.props.usernameSetAt,
                 profileCompleted: profile.props.profileCompleted,
                 updatedAt: new Date()
             },
@@ -37,6 +41,8 @@ export class PrismaUserProfileRepository implements IUserProfileRepository {
                 displayName: profile.props.displayName,
                 avatarUrl: profile.props.avatarUrl,
                 bio: profile.props.bio,
+                username: profile.props.username,
+                usernameSetAt: profile.props.usernameSetAt,
                 profileCompleted: profile.props.profileCompleted
             }
         });
