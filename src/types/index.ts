@@ -67,9 +67,18 @@ export interface Message {
   id: string;
   participantId: string;
   text: string;
-  reactions: Record<string, string[]>;
+  reactions: Record<string, string[]>; // Legacy
   isShadowHidden: boolean;
   createdAt: string;
+  // Social features
+  replyTo?: {
+    id: string;
+    text: string;
+    participantId: string;
+    displayName: string;
+  };
+  reactionSummary?: { emoji: string; count: number }[];
+  myReactions?: string[];
 }
 
 export type ShapeType = 'pen' | 'rect' | 'circle' | 'text';
@@ -107,6 +116,8 @@ export interface ClientEvents {
   'proposal:submit': (data: { type: ProposalType; payload: any }) => void;
   'proposal:moderate': (data: { id: string; decision: 'accepted' | 'rejected' }, callback?: (ok: boolean) => void) => void;
   'chat:send': (data: { text: string }) => void;
+  'message:reply': (data: { text: string; replyToId: string }) => void;
+  'message:react': (data: { messageId: string; emoji: string }) => void;
   'prefs:update': (data: { tickEnabled?: boolean; compactUI?: boolean; theme?: Theme }) => void;
   'whiteboard:draw': (data: { roomId: string; stroke: Stroke }) => void;
   'whiteboard:erase': (data: { roomId: string; strokeId: string }) => void;
@@ -131,6 +142,7 @@ export interface ServerEvents {
   'task:public:updated': (data: { segmentId: string; text: string }) => void;
   'proposal:updated': (data: Proposal) => void;
   'chat:message': (data: Message) => void;
+  'message:reaction': (data: { messageId: string; emoji: string; action: 'added' | 'removed'; participantId: string; counts: Record<string, number> }) => void;
   'whiteboard:state': (strokes: Stroke[]) => void;
   'whiteboard:new-stroke': (stroke: Stroke) => void;
   'whiteboard:erase': (strokeId: string) => void;

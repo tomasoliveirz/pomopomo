@@ -1,16 +1,11 @@
+
 import { Server, Socket } from 'socket.io';
 import { PostMessageUseCase } from '../../core/application/use-cases/PostMessageUseCase';
-import { sendChatSchema } from '../../lib/validators';
-import { config } from '../../infrastructure/config/env';
+import { ToggleReactionUseCase } from '../../core/application/use-cases/ToggleReactionUseCase';
+import { sendChatSchema, reactMessageSchema } from '../../lib/validators';
 import type { ClientEvents, ServerEvents } from '../../types';
 import { RedisRateLimiter } from '../../infrastructure/security/rateLimit/RedisRateLimiter';
 import { RATE_LIMIT_RULES } from '../../infrastructure/security/rateLimit/rules';
-
-interface SocketData {
-  payload: any;
-  roomId: string;
-  participantId: string;
-}
 
 // Simple bad word filter
 const BAD_WORDS = ['spam', 'offensive']; // Expand this list
@@ -25,12 +20,14 @@ export function handleChatEvents(
   data: any,
   dependencies: {
     postMessageUseCase: PostMessageUseCase;
+    toggleReactionUseCase: ToggleReactionUseCase;
     rateLimiter: RedisRateLimiter;
   }
 ) {
   const { roomId, participantId } = socket.data;
-  const { postMessageUseCase, rateLimiter } = dependencies;
+  const { postMessageUseCase, toggleReactionUseCase, rateLimiter } = dependencies;
 
+  // Handle standard chat message (and optional reply via this channel if client prefers)
   socket.on('chat:send', async (chatData) => {
     try {
       const validated = sendChatSchema.parse(chatData);
@@ -49,44 +46,27 @@ export function handleChatEvents(
         roomId,
         participantId,
         text: validated.text,
-        // isShadowHidden needs to be passed to use case?
-        // My PostMessageUseCase currently doesn't accept isShadowHidden.
-        // I should update PostMessageUseCase to accept it or handle it inside.
-        // For now, I'll assume the Use Case handles it or I'll update it.
+        replyToId: validated.replyToId,
+        isShadowHidden // Pass derived value
       });
 
-      // The Use Case saves the message.
-      // Broadcasting is handled by the Use Case via EventsBus?
-      // My PostMessageUseCase implementation:
-      // await this.messageRepo.save(message);
-      // // We need to publish this event via bus
-
-      // If the Use Case publishes via bus, we don't need to emit here.
-      // But SocketIoRoomEventsBus doesn't have publishMessage yet.
-      // So I should emit here manually for now, or update the Bus.
+      const msgPayload = {
+        id: message.id,
+        participantId: message.participantId,
+        text: message.text,
+        createdAt: message.createdAt.toISOString(),
+        reactions: {},
+        isShadowHidden: isShadowHidden ? true : false,
+        replyTo: message.replyTo
+      };
 
       if (!isShadowHidden) {
-        io.to(roomId).emit('chat:message', {
-          id: message.id,
-          participantId: message.participantId,
-          text: message.text,
-          createdAt: message.createdAt.toISOString(),
-          reactions: {},
-          isShadowHidden: false
-        });
+        io.to(roomId).emit('chat:message', { ...msgPayload, isShadowHidden: false });
       } else {
-        socket.emit('chat:message', {
-          id: message.id,
-          participantId: message.participantId,
-          text: message.text,
-          createdAt: message.createdAt.toISOString(),
-          reactions: {},
-          isShadowHidden: true
-        });
+        socket.emit('chat:message', { ...msgPayload, isShadowHidden: true });
       }
 
     } catch (error: any) {
-      // Propagate generic error with optional retryAfterSec
       const payload: any = { message: error.message || 'Failed to send message' };
       if (error.name === 'RateLimitError') {
         payload.retryAfterSec = error.retryAfterSec;
@@ -94,19 +74,81 @@ export function handleChatEvents(
       socket.emit('error', payload);
     }
   });
+
+  // Explicit message:reply event (optional, but requested in spec)
+  socket.on('message:reply', async (replyData) => {
+    try {
+      const validated = sendChatSchema.parse(replyData);
+      if (!validated.replyToId) {
+        throw new Error('replyToId required for message:reply');
+      }
+
+      const { actor } = socket.data;
+      await rateLimiter.rateLimitOrThrow(
+        `ws:chat:${actor.actorId}`,
+        RATE_LIMIT_RULES.ws.chat
+      );
+
+      const isShadowHidden = containsBadWords(validated.text);
+
+      const message = await postMessageUseCase.execute({
+        roomId,
+        participantId,
+        text: validated.text,
+        replyToId: validated.replyToId,
+        isShadowHidden // Pass derived value
+      });
+
+      const msgPayload = {
+        id: message.id,
+        participantId: message.participantId,
+        text: message.text,
+        createdAt: message.createdAt.toISOString(),
+        reactions: {},
+        isShadowHidden: isShadowHidden ? true : false,
+        replyTo: message.replyTo
+      };
+
+      if (!isShadowHidden) {
+        io.to(roomId).emit('chat:message', { ...msgPayload, isShadowHidden: false });
+      } else {
+        socket.emit('chat:message', { ...msgPayload, isShadowHidden: true });
+      }
+
+    } catch (error: any) {
+      socket.emit('error', { message: error.message || 'Failed to reply' });
+    }
+  });
+
+  // Reactions
+  socket.on('message:react', async (reactData) => {
+    try {
+      const validated = reactMessageSchema.parse(reactData);
+      const { actor } = socket.data;
+
+      await rateLimiter.rateLimitOrThrow(
+        `ws:react:${actor.actorId}`,
+        { max: 12, windowSec: 10 }
+      );
+
+      const result = await toggleReactionUseCase.execute({
+        roomId,
+        participantId,
+        messageId: validated.messageId,
+        emoji: validated.emoji
+      });
+
+      // Broadcast update
+      io.to(roomId).emit('message:reaction', {
+        messageId: validated.messageId,
+        emoji: validated.emoji,
+        action: result.action,
+        participantId,
+        counts: result.counts
+      });
+
+    } catch (error: any) {
+      socket.emit('error', { message: error.message || 'Failed to react' });
+    }
+  });
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

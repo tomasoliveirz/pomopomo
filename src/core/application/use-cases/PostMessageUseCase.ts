@@ -1,3 +1,4 @@
+
 import { IMessageRepository } from '../ports/IMessageRepository';
 import { IRoomEventsBus } from '../ports/IRoomEventsBus';
 import { IClock } from '../ports/IClock';
@@ -8,6 +9,8 @@ export interface PostMessageInput {
     roomId: string;
     participantId: string;
     text: string;
+    replyToId?: string;
+    isShadowHidden?: boolean;
 }
 
 export class PostMessageUseCase {
@@ -18,24 +21,35 @@ export class PostMessageUseCase {
     ) { }
 
     async execute(input: PostMessageInput): Promise<Message> {
+        let replyToSnapshot;
+
+        if (input.replyToId) {
+            const parent = await this.messageRepo.findById(input.replyToId);
+            if (parent && parent.props.roomId === input.roomId) {
+                // Should we verify parent is from same room? YES
+                // Parent ID found, populate snapshot
+                replyToSnapshot = {
+                    id: parent.id,
+                    text: parent.text,
+                    participantId: parent.participantId,
+                    displayName: parent.props.authorName || 'Unknown'
+                };
+            }
+        }
+
         const message = new Message({
             id: uuidv4(),
             roomId: input.roomId,
             participantId: input.participantId,
             text: input.text,
             reactions: {},
-            isShadowHidden: false,
-            createdAt: this.clock.now()
+            isShadowHidden: input.isShadowHidden ?? false,
+            createdAt: this.clock.now(),
+            replyToId: input.replyToId,
+            replyTo: replyToSnapshot
         });
 
         await this.messageRepo.save(message);
-
-        // We need to publish this event via bus
-        // But IRoomEventsBus currently doesn't have publishMessage
-        // I should add it to IRoomEventsBus
-        // For now, I'll assume it exists or add it
-        // Let's add it to the interface later or cast it
-        // Actually, I should update IRoomEventsBus interface
 
         return message;
     }

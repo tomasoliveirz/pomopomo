@@ -1,5 +1,7 @@
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import Redis from 'ioredis';
+import { BullTimerScheduler } from '../infrastructure/jobs/bullmq/BullTimerScheduler';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { config } from '../infrastructure/config/env';
@@ -10,6 +12,7 @@ import { PrismaSegmentRepository } from '../infrastructure/db/prisma/PrismaSegme
 import { PrismaTaskRepository } from '../infrastructure/db/prisma/PrismaTaskRepository';
 import { PrismaMessageRepository } from '../infrastructure/db/prisma/PrismaMessageRepository';
 import { PrismaProposalRepository } from '../infrastructure/db/prisma/PrismaProposalRepository';
+import { PrismaUserProfileRepository } from '../infrastructure/db/prisma/PrismaUserProfileRepository';
 import { RedisStateRepository } from '../infrastructure/cache/RedisStateRepository';
 import { RedisPresenceRepository } from '../infrastructure/cache/RedisPresenceRepository';
 import { RedisRateLimiter } from '../infrastructure/security/rateLimit/RedisRateLimiter';
@@ -25,6 +28,7 @@ import { UpdateRoomPrefsUseCase } from '../core/application/use-cases/UpdateRoom
 import { SubmitProposalUseCase } from '../core/application/use-cases/SubmitProposalUseCase';
 import { ModerateProposalUseCase } from '../core/application/use-cases/ModerateProposalUseCase';
 import { LeaveRoomUseCase } from '../core/application/use-cases/LeaveRoomUseCase';
+import { ToggleReactionUseCase } from '../core/application/use-cases/ToggleReactionUseCase';
 import type { ClientEvents, ServerEvents, InterServerEvents, WsTokenPayload } from '../types';
 
 // Handlers (to be refactored)
@@ -74,7 +78,8 @@ const participantRepo = new PrismaParticipantRepository();
 const segmentRepo = new PrismaSegmentRepository();
 const taskRepo = new PrismaTaskRepository();
 const messageRepo = new PrismaMessageRepository();
-const proposalRepo = new PrismaProposalRepository(); // Add this
+const proposalRepo = new PrismaProposalRepository();
+const userProfileRepo = new PrismaUserProfileRepository(); // Added
 const stateRepo = new RedisStateRepository();
 const presenceRepo = new RedisPresenceRepository();
 const rateLimiter = new RedisRateLimiter();
@@ -83,9 +88,13 @@ const rateLimiter = new RedisRateLimiter();
 const eventsBus = new SocketIoRoomEventsBus(io);
 const authService = new JwtAuthService();
 
+// Redis for Queue (BullMQ)
+const queueRedis = new Redis(config.REDIS_URL, { maxRetriesPerRequest: null });
+const scheduler = new BullTimerScheduler(queueRedis);
+
 // Use Cases
-const joinRoomUseCase = new JoinRoomUseCase(roomRepo, participantRepo, authService, eventsBus, clock);
-const timerService = new TimerService(roomRepo, stateRepo, eventsBus, clock);
+const joinRoomUseCase = new JoinRoomUseCase(roomRepo, participantRepo, userProfileRepo, authService, eventsBus, clock);
+const timerService = new TimerService(roomRepo, stateRepo, eventsBus, clock, scheduler);
 const updateQueueUseCase = new UpdateQueueUseCase(roomRepo, segmentRepo, eventsBus);
 const manageTasksUseCase = new ManageTasksUseCase(taskRepo, segmentRepo, proposalRepo, clock);
 const postMessageUseCase = new PostMessageUseCase(messageRepo, eventsBus, clock);
@@ -93,6 +102,7 @@ const updateRoomPrefsUseCase = new UpdateRoomPrefsUseCase(roomRepo, eventsBus);
 const submitProposalUseCase = new SubmitProposalUseCase(proposalRepo, clock);
 const moderateProposalUseCase = new ModerateProposalUseCase(proposalRepo, segmentRepo, eventsBus, clock);
 const leaveRoomUseCase = new LeaveRoomUseCase(roomRepo, participantRepo, presenceRepo, eventsBus, clock);
+const toggleReactionUseCase = new ToggleReactionUseCase(messageRepo);
 
 // Workers
 const timerWorker = new TimerWorker(roomRepo, segmentRepo, stateRepo, eventsBus, clock);
@@ -297,7 +307,7 @@ io.on('connection', async (socket: Socket) => {
     handleQueueEvents(io, socket, data, { updateQueueUseCase, timerService, rateLimiter });
     handleTaskEvents(io, socket, data, { manageTasksUseCase, rateLimiter });
     handleProposalEvents(io, socket, data, { submitProposalUseCase, moderateProposalUseCase, rateLimiter });
-    handleChatEvents(io, socket, data, { postMessageUseCase, rateLimiter });
+    handleChatEvents(io, socket, data, { postMessageUseCase, toggleReactionUseCase, rateLimiter });
     handleWhiteboardEvents(io, socket, data, { rateLimiter });
 
     // --- SYNC HANDLER ---
