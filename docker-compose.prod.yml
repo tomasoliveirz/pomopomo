@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   web:
+    image: pomopomo-web
     build:
       context: .
       dockerfile: Dockerfile
@@ -22,6 +23,7 @@ services:
       retries: 3
 
   ws:
+    image: pomopomo-ws
     build:
       context: .
       dockerfile: Dockerfile.ws
@@ -62,6 +64,7 @@ services:
     # No ports exposed to host
 
   worker:
+    image: pomopomo-worker
     build:
       context: .
       dockerfile: Dockerfile.worker
