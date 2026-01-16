@@ -12,9 +12,9 @@ services:
       - .env.production
     networks:
       - app_network
-    # Expose only to Nginx via Docker network (no ports mapped to host)
-    expose:
-      - "3000"
+    # Bind to localhost so Host Nginx can proxy to it
+    ports:
+      - "127.0.0.1:3000:3000"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
       interval: 30s
@@ -32,8 +32,8 @@ services:
       - .env.production
     networks:
       - app_network
-    expose:
-      - "3001"
+    ports:
+      - "127.0.0.1:3001:3001"
     depends_on:
       - redis
       - postgres
