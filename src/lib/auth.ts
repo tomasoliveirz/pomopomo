@@ -161,5 +161,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
     },
     trustHost: true,
+    debug: true,
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
 });
