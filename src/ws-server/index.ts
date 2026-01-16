@@ -130,8 +130,15 @@ io.use(async (socket, next) => {
   if (!payload) return next(new Error('Invalid token'));
 
   // 4. Ownership check: verify token matches DB participant
+  // DEBUG LOG
+  console.log(`🔍 [WS-AUTH] Verifying token for ParticipantID: ${payload.participantId}`);
   const participant = await participantRepo.findById(payload.participantId);
-  if (!participant) return next(new Error('Participant not found'));
+
+  if (!participant) {
+    console.error(`❌ [WS-AUTH] Participant NOT FOUND in DB: ${payload.participantId}`);
+    return next(new Error('Participant not found'));
+  }
+  console.log(`✅ [WS-AUTH] Participant FOUND: ${participant.id} (Room: ${participant.props.roomId})`);
 
   // 5. Enforce DB truth: roomId and role must match database
   if (participant.props.roomId !== payload.roomId) {

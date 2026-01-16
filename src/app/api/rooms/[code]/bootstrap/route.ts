@@ -95,6 +95,7 @@ export async function POST(
             };
 
             const token = await container.authService.generateToken(tokenPayload);
+            console.log(`📜 [BOOTSTRAP] Generated token for Participant ${participant.id} in Room ${room.id}`);
 
             return NextResponse.json({
                 status: 'joined',
