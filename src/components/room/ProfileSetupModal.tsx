@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { Loader2, Check, X } from 'lucide-react';
 // TextArea removed as it doesn't exist
 
@@ -19,9 +19,16 @@ export default function ProfileSetupModal({ roomId, onComplete }: ProfileSetupMo
     const [loading, setLoading] = useState(false);
 
     // Form State
+    const { data: session } = useSession();
     const [username, setUsername] = useState('');
-    const [displayName, setDisplayName] = useState('');
+    const [displayName, setDisplayName] = useState(session?.user?.name || '');
     const [bio, setBio] = useState('');
+
+    useEffect(() => {
+        if (session?.user?.name && !displayName) {
+            setDisplayName(session.user.name);
+        }
+    }, [session, displayName]);
 
     // Verification State
     const [isChecking, setIsChecking] = useState(false);

@@ -242,11 +242,18 @@ function RoomClient({ code, userMenu, isAuthenticated }: RoomClientProps) {
                 clearTimeout(timeoutId);
                 console.error('WebSocket connection error:', err.message);
 
-                // Handle Token Expiry / Invalid Token
-                if (err.message === 'Authentication error' || err.message.includes('jwt expired')) {
-                    console.log('🔄 Token expired or invalid, clearing session...');
+                // Handle Token Expiry / Invalid Token / Participant Mismatch
+                if (
+                    err.message === 'Authentication error' ||
+                    err.message.includes('jwt expired') ||
+                    err.message === 'Participant not found' ||
+                    err.message === 'Invalid token'
+                ) {
+                    console.log('🔄 Token invalid or participant missing, clearing session...');
                     localStorage.removeItem('wsToken');
-                    setError('Session expired. Please refresh the page.');
+                    localStorage.removeItem('participantId');
+                    // Force a reload to trigger a fresh bootstrap/join
+                    window.location.reload();
                 } else {
                     setError(`Connection failed: ${err.message}`);
                 }
