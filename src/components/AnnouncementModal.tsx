@@ -87,7 +87,7 @@ export default function AnnouncementModal() {
                             <div className="w-full space-y-3">
                                 <button
                                     onClick={handleCreateAccount}
-                                    className="w-full py-3.5 rounded-xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/25 hover:opacity-90 hover:scale-[1.02] transition-all active:scale-95"
+                                    className="w-full py-3.5 rounded-xl bg-violet-600 text-white font-bold text-lg shadow-lg shadow-violet-600/25 hover:bg-violet-700 hover:scale-[1.02] transition-all active:scale-95"
                                 >
                                     Create Account
                                 </button>
