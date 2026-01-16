@@ -49,6 +49,7 @@ RUN npm install -g prisma@5.22.0
 
 # Copy necessary files
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
