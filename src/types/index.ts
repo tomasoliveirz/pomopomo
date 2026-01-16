@@ -37,10 +37,12 @@ export interface Room {
 export interface Participant {
   id: string;
   displayName: string;
+  avatarUrl?: string | null;
   role: Role;
   isMuted: boolean;
   joinedAt: string;
   lastSeenAt: string;
+  userId?: string | null;
 }
 
 export interface Task {

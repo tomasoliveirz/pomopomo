@@ -14,6 +14,7 @@ export interface MessageProps {
         text: string;
         participantId: string;
         displayName: string;
+        isShadowHidden?: boolean;
     };
     createdAt: Date;
 }

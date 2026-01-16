@@ -9,3 +9,5 @@
 | REL-0.D | Event-driven Timer (No Scan) | **Missing** | `TimerWorker.ts` uses polling |
 | REL-0.E | Write-behind (Redis -> Postgres) | **Missing** | Direct DB writes in `TimerWorker` |
 | REL-0.F | Broadcast Storm Controls | **Partial** | Heartbeat exists, but transition logic naive |
+| REL-0.G | Profile System & Theming | **Done** | `UserMenuClient`, `UserProfileSheet`, `Glassmorphism` |
+| REL-0.H | Error Resilience (FK/404) | **Done** | `JoinRoomUseCase`, `ProfileAPI` |

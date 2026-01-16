@@ -66,7 +66,8 @@ export class SocketIoRoomEventsBus implements IRoomEventsBus {
             role: p.role,
             isMuted: p.isMuted,
             joinedAt: p.props.joinedAt.toISOString(),
-            lastSeenAt: p.props.lastSeenAt.toISOString()
+            lastSeenAt: p.props.lastSeenAt.toISOString(),
+            userId: p.props.userId || null
         };
     }
 

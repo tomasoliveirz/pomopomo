@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 interface MemberListProps {
   participants: Participant[];
+  onParticipantClick?: (participant: Participant) => void;
 }
 
 // Custom Crown Icon Component
@@ -27,7 +28,7 @@ const CrownIcon = () => (
   </svg>
 );
 
-export default function MemberList({ participants }: MemberListProps) {
+export default function MemberList({ participants, onParticipantClick }: MemberListProps) {
   const [showAll, setShowAll] = useState(false);
 
   const getInitials = (name: string) => {
@@ -75,33 +76,50 @@ export default function MemberList({ participants }: MemberListProps) {
         <div className="flex items-center -space-x-4 p-2">
           {visibleParticipants.map((participant, index) => {
             const isHost = participant.role === 'host';
+            const hasAvatar = !!participant.avatarUrl;
 
             return (
               <div
                 key={participant.id}
                 className="group relative"
+                onClick={() => onParticipantClick?.(participant)}
               >
                 {/* Avatar */}
                 <div
                   className={`
-                    w-14 h-14 rounded-full ${getAvatarColor(index)} 
+                    w-14 h-14 rounded-full ${hasAvatar ? 'bg-white' : getAvatarColor(index)} 
                     text-white flex items-center justify-center 
                     text-lg font-bold font-display border-4 border-white/50
                     shadow-md shadow-black/5
                     transition-all duration-300 
                     group-hover:scale-110 group-hover:rotate-3 group-hover:z-10
-                    cursor-pointer relative
+                    cursor-pointer relative overflow-hidden
                   `}
                 >
-                  <span className="drop-shadow-md">{getInitials(participant.displayName)}</span>
+                  {hasAvatar ? (
+                    <img
+                      src={participant.avatarUrl!}
+                      alt={participant.displayName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="drop-shadow-md">{getInitials(participant.displayName)}</span>
+                  )}
 
                   {/* Crown for Host */}
                   {isHost && (
-                    <div className="absolute -top-3 -right-1 rotate-12 z-20 animate-bounce-slow">
-                      <CrownIcon />
+                    <div className="absolute top-0 right-0 p-1 bg-white/60 rounded-full backdrop-blur-sm z-20">
+                      <div className="w-3 h-3 text-yellow-500">
+                      </div>
                     </div>
                   )}
                 </div>
+
+                {isHost && (
+                  <div className="absolute -top-3 -right-1 rotate-12 z-20 animate-bounce-slow pointer-events-none">
+                    <CrownIcon />
+                  </div>
+                )}
 
                 {/* Kawaii Tooltip */}
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-30">
@@ -145,26 +163,33 @@ export default function MemberList({ participants }: MemberListProps) {
       {showAll && participants.length > maxVisible && (
         <div className="mt-4 p-4 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 max-h-48 overflow-y-auto w-full animate-fade-in-down">
           <div className="grid grid-cols-2 gap-3">
-            {participants.map((participant, index) => (
-              <div
-                key={participant.id}
-                className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/30 transition-colors"
-              >
+            {participants.map((participant, index) => {
+              const hasAvatar = !!participant.avatarUrl;
+              return (
                 <div
-                  className={`w-8 h-8 rounded-full ${getAvatarColor(index)} text-white flex items-center justify-center text-xs font-bold border-2 border-white/50 shadow-sm shrink-0`}
+                  key={participant.id}
+                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/30 transition-colors cursor-pointer"
+                  onClick={() => onParticipantClick?.(participant)}
                 >
-                  {getInitials(participant.displayName)}
+                  <div
+                    className={`w-8 h-8 rounded-full ${hasAvatar ? 'bg-white' : getAvatarColor(index)} text-white flex items-center justify-center text-xs font-bold border-2 border-white/50 shadow-sm shrink-0 overflow-hidden`}
+                  >
+                    {hasAvatar ? (
+                      <img src={participant.avatarUrl!} alt={participant.displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      getInitials(participant.displayName)
+                    )}
+                  </div>
+                  <span className="truncate text-sm font-medium text-white mix-blend-overlay">{participant.displayName}</span>
+                  {participant.role === 'host' && (
+                    <span className="text-xs">👑</span>
+                  )}
                 </div>
-                <span className="truncate text-sm font-medium text-white mix-blend-overlay">{participant.displayName}</span>
-                {participant.role === 'host' && (
-                  <span className="text-xs">👑</span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
     </div>
   );
 }
-

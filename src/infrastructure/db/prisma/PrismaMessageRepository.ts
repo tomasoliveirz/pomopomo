@@ -31,6 +31,7 @@ export class PrismaMessageRepository implements IMessageRepository {
                         id: true,
                         text: true,
                         participantId: true,
+                        isShadowHidden: true,
                         participant: {
                             select: { displayName: true }
                         }
@@ -39,11 +40,11 @@ export class PrismaMessageRepository implements IMessageRepository {
             }
         });
 
-        return data.reverse().map(m => {
+        return data.reverse().map((m: any) => {
             const reactionsMap: Record<string, string[]> = {};
             const summaryMap: Record<string, number> = {};
 
-            m.reactionRows.forEach(row => {
+            m.reactionRows.forEach((row: any) => {
                 if (!reactionsMap[row.emoji]) {
                     reactionsMap[row.emoji] = [];
                     summaryMap[row.emoji] = 0;
@@ -68,7 +69,8 @@ export class PrismaMessageRepository implements IMessageRepository {
                     id: m.replyTo.id,
                     text: m.replyTo.text,
                     participantId: m.replyTo.participantId,
-                    displayName: m.replyTo.participant.displayName
+                    displayName: m.replyTo.participant.displayName,
+                    isShadowHidden: (m.replyTo as any).isShadowHidden
                 } : undefined
             });
         });
@@ -85,6 +87,7 @@ export class PrismaMessageRepository implements IMessageRepository {
                         id: true,
                         text: true,
                         participantId: true,
+                        isShadowHidden: true,
                         participant: { select: { displayName: true } }
                     }
                 }
@@ -96,7 +99,7 @@ export class PrismaMessageRepository implements IMessageRepository {
         const reactionsMap: Record<string, string[]> = {};
         const summaryMap: Record<string, number> = {};
 
-        m.reactionRows.forEach(row => {
+        m.reactionRows.forEach((row: any) => {
             if (!reactionsMap[row.emoji]) {
                 reactionsMap[row.emoji] = [];
                 summaryMap[row.emoji] = 0;
@@ -122,7 +125,8 @@ export class PrismaMessageRepository implements IMessageRepository {
                 id: m.replyTo.id,
                 text: m.replyTo.text,
                 participantId: m.replyTo.participantId,
-                displayName: m.replyTo.participant.displayName
+                displayName: m.replyTo.participant.displayName,
+                isShadowHidden: (m.replyTo as any).isShadowHidden
             } : undefined
         });
     }

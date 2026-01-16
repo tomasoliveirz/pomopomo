@@ -588,7 +588,10 @@ function RoomClient({ code, userMenu, isAuthenticated }: RoomClientProps) {
                         socket={socket}
                     />
 
-                    <MemberList participants={participants} />
+                    <MemberList
+                        participants={participants}
+                        onParticipantClick={(p) => setSelectedParticipant(p)}
+                    />
                 </div>
 
                 {/* Queue Panel - Floating Overlay (Now on Right) */}

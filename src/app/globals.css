@@ -18,71 +18,175 @@ body {
   overflow: hidden;
 }
 
-/* Theme: Lofi Girl - Pastel pinks and purples */
-[data-theme='lofi_girl'] {
-  --bg: 255 240 245;
-  --card: 255 255 255;
-  --text: 74 74 74;
-  --accent: 255 183 178;
-  --ring: 255 183 178;
-  --success: 168 230 207;
-  --warning: 255 211 182;
-}
-
-/* Theme: Matcha Latte - Soft greens and cream */
+/* ============================================
+   THEME: Matcha Latte - Soft greens and cream
+   A calming, earthy kawaii palette
+   ============================================ */
 [data-theme='matcha_latte'] {
-  --bg: 240 255 244;
+  --bg: 245 250 242;
   --card: 255 255 255;
-  --text: 60 90 69;
-  --accent: 157 192 139;
-  --ring: 157 192 139;
-  --success: 168 230 207;
-  --warning: 255 211 182;
+  --text: 55 75 62;
+  
+  --primary: 134 169 134;
+  --primary-foreground: 255 255 255;
+  
+  --secondary: 220 235 215;
+  --secondary-foreground: 55 75 62;
+  
+  --muted: 235 242 230;
+  --muted-foreground: 110 130 110;
+  
+  --accent: 185 215 180;
+  --accent-foreground: 45 60 50;
+  
+  --destructive: 220 100 100;
+  --destructive-foreground: 255 255 255;
+  
+  --border: 200 220 195;
+  --input: 230 240 225;
+  --ring: 134 169 134;
+  
+  --success: 145 200 160;
+  --warning: 245 190 130;
 }
 
-/* Theme: Sky Blue - Light blues and white */
-[data-theme='sky_blue'] {
-  --bg: 240 248 255;
-  --card: 255 255 255;
-  --text: 74 85 104;
-  --accent: 135 206 235;
-  --ring: 135 206 235;
-  --success: 168 230 207;
-  --warning: 255 211 182;
-}
-
-/* Theme: Night Mode - Slate Palette */
-[data-theme='night_mode'] {
-  --bg: 15 23 42;
-  /* Slate 900 */
-  --card: 30 41 59;
-  /* Slate 800 */
-  --text: 241 245 249;
-  /* Slate 100 */
-  --accent: 148 163 184;
-  /* Slate 400 */
-  --ring: 148 163 184;
-  --success: 104 211 145;
-  --warning: 246 173 85;
-}
-
-/* Theme: Strawberry - Soft reds and pinks */
+/* ============================================
+   THEME: Strawberry - Sweet pinks and reds
+   A cheerful, warm kawaii palette
+   ============================================ */
 [data-theme='strawberry'] {
-  --bg: 255 245 245;
+  --bg: 255 248 250;
   --card: 255 255 255;
-  --text: 116 42 42;
-  --accent: 252 129 129;
-  --ring: 252 129 129;
-  --success: 104 211 145;
-  --warning: 246 173 85;
+  --text: 100 50 60;
+  
+  --primary: 240 120 140;
+  --primary-foreground: 255 255 255;
+  
+  --secondary: 255 220 225;
+  --secondary-foreground: 100 50 60;
+  
+  --muted: 255 235 238;
+  --muted-foreground: 160 100 110;
+  
+  --accent: 255 180 190;
+  --accent-foreground: 80 40 50;
+  
+  --destructive: 220 80 80;
+  --destructive-foreground: 255 255 255;
+  
+  --border: 255 200 210;
+  --input: 255 240 242;
+  --ring: 240 120 140;
+  
+  --success: 160 210 170;
+  --warning: 255 200 140;
 }
 
+/* ============================================
+   THEME: Lofi Girl - Dreamy pinks and purples
+   A cozy, nostalgic kawaii palette
+   ============================================ */
+[data-theme='lofi_girl'] {
+  --bg: 255 245 250;
+  --card: 255 255 255;
+  --text: 80 60 80;
+  
+  --primary: 200 150 180;
+  --primary-foreground: 255 255 255;
+  
+  --secondary: 240 220 235;
+  --secondary-foreground: 80 60 80;
+  
+  --muted: 250 238 245;
+  --muted-foreground: 140 110 135;
+  
+  --accent: 255 190 210;
+  --accent-foreground: 70 50 70;
+  
+  --destructive: 220 100 120;
+  --destructive-foreground: 255 255 255;
+  
+  --border: 230 200 220;
+  --input: 252 242 248;
+  --ring: 200 150 180;
+  
+  --success: 170 210 180;
+  --warning: 255 200 160;
+}
+
+/* ============================================
+   THEME: Sky Blue - Fresh, airy blues
+   A calm, refreshing kawaii palette
+   ============================================ */
+[data-theme='sky_blue'] {
+  --bg: 245 252 255;
+  --card: 255 255 255;
+  --text: 50 70 90;
+  
+  --primary: 100 180 230;
+  --primary-foreground: 255 255 255;
+  
+  --secondary: 215 235 250;
+  --secondary-foreground: 50 70 90;
+  
+  --muted: 235 245 252;
+  --muted-foreground: 100 130 160;
+  
+  --accent: 160 210 245;
+  --accent-foreground: 40 60 80;
+  
+  --destructive: 220 100 100;
+  --destructive-foreground: 255 255 255;
+  
+  --border: 190 220 240;
+  --input: 240 248 255;
+  --ring: 100 180 230;
+  
+  --success: 130 200 160;
+  --warning: 255 200 130;
+}
+
+/* ============================================
+   THEME: Night Mode - Cozy dark with soft accents
+   A warm, comfortable dark kawaii palette
+   ============================================ */
+[data-theme='night_mode'] {
+  --bg: 25 28 35;
+  --card: 35 40 50;
+  --text: 235 235 240;
+  
+  --primary: 180 160 210;
+  --primary-foreground: 25 28 35;
+  
+  --secondary: 50 55 65;
+  --secondary-foreground: 200 200 210;
+  
+  --muted: 45 50 60;
+  --muted-foreground: 160 165 175;
+  
+  --accent: 200 180 220;
+  --accent-foreground: 25 28 35;
+  
+  --destructive: 200 80 90;
+  --destructive-foreground: 255 255 255;
+  
+  --border: 55 60 75;
+  --input: 40 45 55;
+  --ring: 180 160 210;
+  
+  --success: 130 190 150;
+  --warning: 240 180 100;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
 body {
   margin: 0;
   padding: 0;
   font-family: var(--font-sans);
-  background-color: var(--bg);
-  color: var(--text);
+  background-color: rgb(var(--bg));
+  color: rgb(var(--text));
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -101,21 +205,22 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--accent-subtle);
+  background: rgb(var(--accent) / 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
+  background: rgb(var(--accent) / 0.5);
 }
 
-/* Animations */
+/* ============================================
+   ANIMATIONS
+   ============================================ */
 @keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(10px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
@@ -123,14 +228,20 @@ body {
 }
 
 @keyframes pulse {
-
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
   }
-
   50% {
     opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }
 
@@ -142,43 +253,67 @@ body {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Button styles */
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgb(var(--accent) / 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* ============================================
+   BUTTON STYLES
+   ============================================ */
 .btn {
-  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply px-4 py-2 rounded-xl font-medium transition-all duration-200;
   @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
 }
 
 .btn-primary {
-  @apply btn bg-accent text-white hover:opacity-90;
+  @apply btn bg-primary text-primary-foreground hover:opacity-90;
   @apply focus:ring-ring;
 }
 
 .btn-secondary {
-  @apply btn bg-card text-text border border-accent-subtle hover:bg-accent-subtle;
+  @apply btn bg-secondary text-secondary-foreground hover:bg-muted;
   @apply focus:ring-ring;
 }
 
 .btn-ghost {
-  @apply btn bg-transparent hover:bg-accent-subtle;
+  @apply btn bg-transparent hover:bg-muted;
   @apply focus:ring-ring;
 }
 
-/* Input styles */
+.btn-destructive {
+  @apply btn bg-destructive text-destructive-foreground hover:opacity-90;
+  @apply focus:ring-destructive;
+}
+
+/* ============================================
+   INPUT STYLES
+   ============================================ */
 .input {
-  @apply w-full px-4 py-2 rounded-lg bg-card border border-accent-subtle;
-  @apply text-text placeholder:opacity-50;
+  @apply w-full px-4 py-2.5 rounded-xl bg-input border border-border;
+  @apply text-foreground placeholder:text-muted-foreground;
   @apply focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent;
   @apply transition-all duration-200;
 }
 
-/* Card styles */
+/* ============================================
+   CARD STYLES
+   ============================================ */
 .card {
-  @apply bg-card rounded-card p-6;
-  @apply border border-accent-subtle border-opacity-10;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  @apply bg-card rounded-3xl p-6;
+  @apply border border-border/30;
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
 }
 
-/* Gradient overlays */
+.card-hover {
+  @apply card transition-all duration-300;
+  @apply hover:shadow-lg hover:border-accent/30 hover:-translate-y-0.5;
+}
+
+/* ============================================
+   GRADIENT OVERLAYS
+   ============================================ */
 .gradient-overlay {
   position: relative;
   overflow: hidden;
@@ -188,7 +323,13 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, var(--accent) 0%, transparent 50%);
-  opacity: 0.05;
+  background: linear-gradient(135deg, rgb(var(--primary) / 0.05) 0%, transparent 50%);
   pointer-events: none;
+}
+
+/* ============================================
+   GLASS EFFECT
+   ============================================ */
+.glass {
+  @apply bg-card/70 backdrop-blur-xl border border-border/20;
 }

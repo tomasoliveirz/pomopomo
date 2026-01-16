@@ -97,7 +97,7 @@ const joinRoomUseCase = new JoinRoomUseCase(roomRepo, participantRepo, userProfi
 const timerService = new TimerService(roomRepo, stateRepo, eventsBus, clock, scheduler);
 const updateQueueUseCase = new UpdateQueueUseCase(roomRepo, segmentRepo, eventsBus);
 const manageTasksUseCase = new ManageTasksUseCase(taskRepo, segmentRepo, proposalRepo, clock);
-const postMessageUseCase = new PostMessageUseCase(messageRepo, eventsBus, clock);
+const postMessageUseCase = new PostMessageUseCase(messageRepo, clock);
 const updateRoomPrefsUseCase = new UpdateRoomPrefsUseCase(roomRepo, eventsBus);
 const submitProposalUseCase = new SubmitProposalUseCase(proposalRepo, clock);
 const moderateProposalUseCase = new ModerateProposalUseCase(proposalRepo, segmentRepo, eventsBus, clock);
@@ -159,7 +159,6 @@ io.use(async (socket, next) => {
   };
   socket.data.roomId = participant.props.roomId;
   socket.data.participantId = participant.id;
-  socket.data.roomRole = participant.role; // Always trust DB role
   socket.data.roomRole = participant.role; // Always trust DB role
   next();
 });
@@ -276,15 +275,32 @@ io.on('connection', async (socket: Socket) => {
     const participantsDTO = participants.map((p: any) => ({
       id: p.id,
       displayName: p.displayName,
+      avatarUrl: p.avatarUrl || null,
       role: p.role,
       isMuted: p.isMuted,
       joinedAt: p.props.joinedAt.toISOString(),
-      lastSeenAt: p.props.lastSeenAt.toISOString()
+      lastSeenAt: p.props.lastSeenAt.toISOString(),
+      userId: p.props.userId || null
     }));
 
-    const messagesDTO = messages.map((m: any) => ({
-      ...m.props
-    }));
+    console.log('🔍 [DEBUG] Participants DTO:', JSON.stringify(participantsDTO, null, 2));
+
+    const messagesDTO = messages
+      .filter((m: any) => !m.props.isShadowHidden || m.props.participantId === participantId)
+      .map((m: any) => ({
+        ...m.props,
+        // Privacy: Strip raw reaction lists, send only summary and "my" reactions
+        reactions: {}, // Clear legacy field
+        myReactions: m.props.reactions ?
+          Object.entries(m.props.reactions)
+            .filter(([_, pIds]) => (pIds as string[]).includes(participantId))
+            .map(([emoji]) => emoji)
+          : [],
+        reactionSummary: m.props.reactionSummary || [],
+        replyTo: (m.props.replyTo && m.props.replyTo.isShadowHidden && m.props.replyTo.participantId !== participantId)
+          ? { ...m.props.replyTo, text: '[hidden]' }
+          : m.props.replyTo
+      }));
 
     // Emit initial state
     socket.emit('room:joined', {
@@ -344,6 +360,63 @@ async function startServer() {
   await Promise.all([pubClient.connect(), subClient.connect()]);
   io.adapter(createAdapter(pubClient, subClient));
   console.log('✅ Socket.IO Redis adapter initialized');
+
+  // Subscribe to profile updates for real-time sync
+  const profileSubClient = pubClient.duplicate();
+  await profileSubClient.connect();
+
+  await profileSubClient.subscribe('profile.updated', async (message) => {
+    try {
+      const { userId, displayName, avatarUrl, bio } = JSON.parse(message);
+      console.log(`📢 Profile update received for user ${userId}: ${displayName}`);
+
+      // Find all active participants for this user and update them
+      const participants = await participantRepo.findByUserId(null as any, userId); // Get all for user
+
+      // Actually, we need to query differently - let's find rooms where this user is active
+      // For now, update via direct socket broadcast using socket.data.userId
+
+      // Broadcast to all connected sockets that belong to this user
+      const sockets = await io.fetchSockets();
+      const affectedRoomIds = new Set<string>();
+
+      for (const socket of sockets) {
+        if (socket.data.userId === userId) {
+          // Update the participant in DB
+          const participant = await participantRepo.findById(socket.data.participantId);
+          if (participant) {
+            participant.updateDisplayName(displayName);
+            participant.updateAvatarUrl(avatarUrl || null);
+            await participantRepo.save(participant);
+            affectedRoomIds.add(socket.data.roomId);
+          }
+        }
+      }
+
+      // Broadcast participants:updated to affected rooms
+      for (const roomId of affectedRoomIds) {
+        const roomParticipants = await participantRepo.findByRoomId(roomId);
+        const activeParticipantIds = await presenceRepo.getPresence(roomId);
+        const activeParticipants = roomParticipants.filter(p => activeParticipantIds.includes(p.id));
+
+        const participantsDTO = activeParticipants.map((p) => ({
+          id: p.id,
+          displayName: p.displayName,
+          avatarUrl: p.avatarUrl || null,
+          role: p.role,
+          isMuted: p.isMuted,
+          userId: p.props.userId
+        }));
+
+        io.to(roomId).emit('participants:updated', { list: participantsDTO as any });
+        console.log(`✅ Broadcasted profile update to room ${roomId}`);
+      }
+    } catch (err) {
+      console.error('Failed to process profile update:', err);
+    }
+  });
+
+  console.log('✅ Profile update subscriber initialized');
 
   const PORT = config.WS_PORT;
   httpServer.listen(PORT, '0.0.0.0', () => {

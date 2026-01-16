@@ -1,6 +1,5 @@
 
 import { IMessageRepository } from '../ports/IMessageRepository';
-import { IRoomEventsBus } from '../ports/IRoomEventsBus';
 import { IClock } from '../ports/IClock';
 import { Message } from '../../domain/entities/Message';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,7 +15,6 @@ export interface PostMessageInput {
 export class PostMessageUseCase {
     constructor(
         private messageRepo: IMessageRepository,
-        private eventsBus: IRoomEventsBus,
         private clock: IClock
     ) { }
 
@@ -32,7 +30,8 @@ export class PostMessageUseCase {
                     id: parent.id,
                     text: parent.text,
                     participantId: parent.participantId,
-                    displayName: parent.props.authorName || 'Unknown'
+                    displayName: parent.props.authorName || 'Unknown',
+                    isShadowHidden: parent.props.isShadowHidden
                 };
             }
         }

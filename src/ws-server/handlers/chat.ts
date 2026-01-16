@@ -57,7 +57,9 @@ export function handleChatEvents(
         createdAt: message.createdAt.toISOString(),
         reactions: {},
         isShadowHidden: isShadowHidden ? true : false,
-        replyTo: message.replyTo
+        replyTo: (message.replyTo && message.replyTo.isShadowHidden)
+          ? { ...message.replyTo, text: '[hidden]' }
+          : message.replyTo
       };
 
       if (!isShadowHidden) {
@@ -71,7 +73,7 @@ export function handleChatEvents(
       if (error.name === 'RateLimitError') {
         payload.retryAfterSec = error.retryAfterSec;
       }
-      socket.emit('error', payload);
+      socket.emit('app:error', payload);
     }
   });
 
@@ -106,7 +108,9 @@ export function handleChatEvents(
         createdAt: message.createdAt.toISOString(),
         reactions: {},
         isShadowHidden: isShadowHidden ? true : false,
-        replyTo: message.replyTo
+        replyTo: (message.replyTo && message.replyTo.isShadowHidden)
+          ? { ...message.replyTo, text: '[hidden]' }
+          : message.replyTo
       };
 
       if (!isShadowHidden) {
@@ -116,7 +120,7 @@ export function handleChatEvents(
       }
 
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to reply' });
+      socket.emit('app:error', { message: error.message || 'Failed to reply' });
     }
   });
 
@@ -148,7 +152,7 @@ export function handleChatEvents(
       });
 
     } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to react' });
+      socket.emit('app:error', { message: error.message || 'Failed to react' });
     }
   });
 }

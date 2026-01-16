@@ -32,6 +32,7 @@ export class PrismaParticipantRepository implements IParticipantRepository {
     async findByRoomId(roomId: string): Promise<Participant[]> {
         const data = await prisma.participant.findMany({
             where: { roomId },
+            include: { user: { include: { profile: true } } }
         });
 
         return data.map(this.mapToDomain);
@@ -45,6 +46,7 @@ export class PrismaParticipantRepository implements IParticipantRepository {
                     sessionId,
                 },
             },
+            include: { user: { include: { profile: true } } }
         });
 
         if (!data) return null;
@@ -55,6 +57,7 @@ export class PrismaParticipantRepository implements IParticipantRepository {
     async findById(id: string): Promise<Participant | null> {
         const data = await prisma.participant.findUnique({
             where: { id },
+            include: { user: { include: { profile: true } } }
         });
 
         if (!data) return null;
@@ -70,6 +73,7 @@ export class PrismaParticipantRepository implements IParticipantRepository {
                     userId,
                 },
             },
+            include: { user: { include: { profile: true } } }
         });
 
         if (!data) return null;
@@ -84,6 +88,7 @@ export class PrismaParticipantRepository implements IParticipantRepository {
             sessionId: SessionId.create(data.sessionId),
             userId: data.userId,
             displayName: data.displayName,
+            avatarUrl: data.user?.profile?.avatarUrl || data.user?.image || null,
             role: data.role as Role,
             isMuted: data.isMuted,
             joinedAt: data.joinedAt,

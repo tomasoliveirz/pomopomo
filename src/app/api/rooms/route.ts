@@ -65,6 +65,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Create room error:', error);
+
+    if (error.message?.includes('User session invalid') || error.code === 'P2003') {
+      return NextResponse.json(
+        { success: false, error: 'User session stale. Please re-login.' },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to create room' },
       { status: 400 }

@@ -10,8 +10,9 @@ const providers: Provider[] = [
         clientId: process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET,
     }),
-    // Dev Login (only in development)
-    ...(process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_API_URL?.includes('localhost')
+    // Dev Login removed as requested by user.
+    // Only Google Auth and Production Credentials are active.
+    ...(process.env.ENABLE_DEV_LOGIN === "true"
         ? [
             Credentials({
                 id: "dev",
@@ -81,6 +82,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         async session({ session, token }) {
             if (session.user && token.sub) {
                 session.user.id = token.sub;
+
+                try {
+                    const profile = await prisma.userProfile.findUnique({
+                        where: { userId: token.sub },
+                        select: {
+                            displayName: true,
+                            username: true,
+                            avatarUrl: true,
+                            profileCompleted: true
+                        }
+                    });
+
+                    if (profile) {
+                        // CRITICAL: Override name and image with profile data
+                        // This ensures we NEVER use Google name in the app
+                        session.user.name = profile.displayName;
+                        session.user.username = profile.username;
+                        session.user.profileCompleted = profile.profileCompleted;
+
+                        // Use profile avatar, fall back to provider (Google) image
+                        if (profile.avatarUrl) {
+                            session.user.image = profile.avatarUrl;
+                        }
+                        // else: keep session.user.image from provider (Google)
+                    } else {
+                        // No profile yet - user must complete onboarding
+                        session.user.profileCompleted = false;
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch profile in session callback", error);
+                }
             }
             return session;
         },
@@ -102,10 +134,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 data: {
                     userId: user.id,
                     displayName: user.name || "User",
+                    avatarUrl: user.image || null, // Default to Google avatar
                     profileCompleted: false,
                     // username is null by default
                 }
             });
+        },
+        async signIn({ user }) {
+            if (user.id && user.image) {
+                try {
+                    const profile = await prisma.userProfile.findUnique({
+                        where: { userId: user.id }
+                    });
+
+                    // If profile exists but has no avatar, sync from Google
+                    if (profile && !profile.avatarUrl) {
+                        await prisma.userProfile.update({
+                            where: { userId: user.id },
+                            data: { avatarUrl: user.image }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Error syncing avatar on signin:", e);
+                }
+            }
         }
     },
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,

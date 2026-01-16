@@ -47,11 +47,15 @@ export class JoinRoomUseCase {
         const now = this.clock.now();
 
         // Enforce Source of Truth for Identity
+        // Enforce Source of Truth for Identity
         let displayName = input.displayName;
+        let avatarUrl: string | null = null;
+
         if (input.userId) {
             const profile = await this.userProfileRepo.findByUserId(input.userId);
-            if (profile?.displayName) {
-                displayName = profile.displayName;
+            if (profile) {
+                if (profile.displayName) displayName = profile.displayName;
+                avatarUrl = profile.avatarUrl ?? null;
             }
             // If profile doesn't exist yet, we stick with input.displayName -> which might be provisional
         }
@@ -75,6 +79,7 @@ export class JoinRoomUseCase {
                 sessionId: sessionId,
                 userId: input.userId,
                 displayName: displayName, // Use enforced name
+                avatarUrl: avatarUrl,     // Use profile avatar
                 role: sessionId.equals(room.props.hostSessionId) ? 'host' : 'guest',
                 isMuted: false,
                 joinedAt: now,
@@ -83,7 +88,7 @@ export class JoinRoomUseCase {
             try {
                 await this.participantRepo.save(participant);
             } catch (error: any) {
-                // Handle potential race condition: P2002 Unique constraint failed on the constraint: `participants_room_id_user_id_key`
+                // Handle potential race condition: P2002 Unique constraint failed
                 if (error.code === 'P2002' || error.message?.includes('Unique constraint')) {
                     const existing = input.userId
                         ? await this.participantRepo.findByUserId(room.id, input.userId)
@@ -92,9 +97,15 @@ export class JoinRoomUseCase {
                     if (existing) {
                         participant = existing;
                     } else {
-                        throw error; // If effectively not duplicate, rethrow
+                        throw error;
                     }
-                } else {
+                }
+                // Handle FK violation (User ID invalid/deleted) - P2003
+                else if (error.code === 'P2003' || error.message?.includes('Foreign key constraint')) {
+                    console.error(`[JoinRoom] Invalid userId ${input.userId} - user likely deleted.`);
+                    throw new Error('User session invalid. Please sign out and sign in again.');
+                }
+                else {
                     throw error;
                 }
             }
@@ -103,7 +114,9 @@ export class JoinRoomUseCase {
             if (!participant.props.userId && input.userId) {
                 participant = new Participant({
                     ...participant.props,
-                    userId: input.userId
+                    userId: input.userId,
+                    displayName: displayName, // Update name to profile name
+                    avatarUrl: avatarUrl      // Update avatar to profile avatar
                 });
                 await this.participantRepo.save(participant);
             }

@@ -20,6 +20,14 @@ export class UserProfile {
         return this.props.displayName;
     }
 
+    get avatarUrl() {
+        return this.props.avatarUrl;
+    }
+
+    get bio() {
+        return this.props.bio;
+    }
+
     get username() {
         return this.props.username;
     }
