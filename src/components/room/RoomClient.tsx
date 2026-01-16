@@ -144,7 +144,11 @@ function RoomClient({ code, userMenu, isAuthenticated }: RoomClientProps) {
                 if (data.status === 'joined') {
                     console.log('✅ Bootstrap Joined:', data.data);
                     wsToken = data.data.wsToken;
-                    console.log('🔑 Token received:', wsToken.substring(0, 10) + '...');
+                    if (wsToken) {
+                        console.log('🔑 Token received:', wsToken.substring(0, 10) + '...');
+                    } else {
+                        console.log('⚠️ Token is missing in bootstrap response');
+                    }
                     // Update local storage just in case other components need it (legacy)
                     localStorage.setItem('wsToken', wsToken!);
                     if (data.data.participant) {
