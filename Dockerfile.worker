@@ -23,7 +23,7 @@ RUN apt-get update -y && apt-get install -y openssl
 ENV NODE_ENV production
 
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+RUN npm ci --only=production --ignore-scripts
 RUN npm install -g tsx
 
 COPY . .
